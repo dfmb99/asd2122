@@ -10,7 +10,7 @@ import java.util.UUID;
 import pt.unl.fct.di.novasys.babel.generic.ProtoReply;
 import pt.unl.fct.di.novasys.network.data.Host;
 
-public class LookupRequest extends ProtoReply {
+public class LookupReply extends ProtoReply {
 
 	public final static short REPLY_ID = 102;
 	
@@ -18,14 +18,14 @@ public class LookupRequest extends ProtoReply {
 	private UUID uid;
 	private Set<Host> peers;
 	
-	public LookupRequest(BigInteger id, Collection<Host> peers, UUID uid) {
+	public LookupReply(BigInteger id, Collection<Host> peers, UUID uid) {
 		super(REPLY_ID);
 		this.id = id;
 		this.uid = uid;
 		this.peers = new HashSet<Host>(peers);
 	}
 	
-	public LookupRequest(BigInteger id, Host peer, UUID uid) {
+	public LookupReply(BigInteger id, Host peer, UUID uid) {
 		super(REPLY_ID);
 		this.id = id;
 		this.uid = uid;
