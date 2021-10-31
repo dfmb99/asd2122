@@ -15,14 +15,11 @@ import utils.HashGenerator;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.net.InetAddress;
-import java.util.HashSet;
-import java.util.Properties;
-import java.util.Set;
+import java.util.*;
 
 public class Chord extends GenericProtocol {
 
     private static final Logger logger = LogManager.getLogger(Chord.class);
-
 
     public static final int SHA1_HASH_SIZE = 160;
 
@@ -38,7 +35,8 @@ public class Chord extends GenericProtocol {
     private Host myself;
     private BigInteger myKey;
 
-    private final Set<Host> pending; // Peers I am trying to connect to
+    private final Set<Host> pendingConnections; // Connections I'm trying to establish
+    private final Map<Host, List<ProtoMessage>> pendingMessages; // Messages waiting for a outConnection to be opened to send a findSuccessor msg
 
     private final int channelId; //Id of the created channel
 
@@ -50,7 +48,8 @@ public class Chord extends GenericProtocol {
         this.predecessor = null;
         this.myself = myself;
         this.myKey = HashGenerator.generateHash(myself.toString());
-        this.pending = new HashSet<>();
+        this.pendingConnections = new HashSet<>();
+        this.pendingMessages = new HashMap<>();
 
 
         String cMetricsInterval = props.getProperty("channel_metrics_interval", "10000"); //10 seconds
@@ -86,8 +85,10 @@ public class Chord extends GenericProtocol {
             String[] hostElems = contact.split(":");
             Host contactHost = new Host(InetAddress.getByName(hostElems[0]), Short.parseShort(hostElems[1]));
             predecessor = null;
-            pending.add(contactHost);
+            pendingConnections.add(contactHost);
             openConnection(contactHost);
+            FindSuccessorMessage msg = new FindSuccessorMessage(myKey, myself);
+            Objects.requireNonNull(pendingMessages.put(contactHost, new LinkedList<>())).add(msg);
         }
         else {  // create ring
             predecessor = null;
@@ -101,8 +102,12 @@ public class Chord extends GenericProtocol {
     private void uponOutConnectionUp(OutConnectionUp event, int channelId) {
         Host peer = event.getNode();
         logger.debug("Connection to {} is up", peer);
-        if(pending.remove(peer))
-            sendMessage(new FindSuccessorMessage(myKey, myself), peer);
+        pendingConnections.remove(peer);
+
+        List<ProtoMessage> messages = pendingMessages.computeIfAbsent(peer, k -> new LinkedList<>());
+        for (ProtoMessage m : messages)
+            sendMessage(m, peer);
+
     }
 
 
@@ -134,12 +139,12 @@ public class Chord extends GenericProtocol {
     private void UponFindSuccessorMessage(FindSuccessorMessage msg, Host from, short sourceProto, int channelId) {
         logger.debug("Received {} from {}", msg, from);
         BigInteger successorKey = HashGenerator.generateHash(finger[0].toString());
-        if( msg.getNodeId().compareTo(myKey) > 0 && msg.getNodeId().compareTo(successorKey) <= 0 ){
-            sendMessage(new FindSuccessorReplyMessage(finger[0]), msg.getHost());
+        if( msg.getKey().compareTo(myKey) > 0 && msg.getKey().compareTo(successorKey) <= 0 ){
+            sendMessage(new FindSuccessorReplyMessage(finger[0], msg.getKey()), msg.getHost());
         }
         else{
-            Host closestPreceedingNode = closestPrecedingNode(msg.getNodeId());
-            sendMessage(new FindSuccessorMessage(msg.getNodeId(), msg.getHost()), closestPreceedingNode);
+            Host closestPrecedingNode = closestPrecedingNode(msg.getKey());
+            sendMessage(new FindSuccessorMessage(msg.getKey(), msg.getHost()), closestPrecedingNode);
         }
     }
 

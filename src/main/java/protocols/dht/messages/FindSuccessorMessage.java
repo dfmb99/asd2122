@@ -12,17 +12,17 @@ public class FindSuccessorMessage extends ProtoMessage {
 
     public final static short MSG_ID = 103;
 
-    private final BigInteger id;
-    private final Host host;
+    private final BigInteger key;
+    private final Host host;    // process who issued the LookUp request
 
-    public FindSuccessorMessage(BigInteger id, Host host) {
+    public FindSuccessorMessage(BigInteger key, Host host) {
         super(MSG_ID);
-        this.id = id;
+        this.key = key;
         this.host = host;
     }
 
-    public BigInteger getNodeId() {
-        return this.id;
+    public BigInteger getKey() {
+        return this.key;
     }
 
     public Host getHost() {
@@ -32,7 +32,7 @@ public class FindSuccessorMessage extends ProtoMessage {
     @Override
     public String toString() {
         return "GetSuccessorMessage{" +
-                "id=" + id +
+                "key=" + key +
                 "host=" + host +
                 '}';
     }

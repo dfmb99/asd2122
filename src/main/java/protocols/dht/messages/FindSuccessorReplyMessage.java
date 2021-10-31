@@ -6,26 +6,34 @@ import pt.unl.fct.di.novasys.network.ISerializer;
 import pt.unl.fct.di.novasys.network.data.Host;
 
 import java.io.IOException;
+import java.math.BigInteger;
 
 public class FindSuccessorReplyMessage extends ProtoMessage {
 
     public final static short MSG_ID = 104;
 
-    private final Host successor;
+    private final BigInteger key;    // id that was requested
+    private final Host successor;   // the successor of the requested id
 
 
-    public FindSuccessorReplyMessage(Host successor) {
+    public FindSuccessorReplyMessage(Host successor, BigInteger key) {
         super(MSG_ID);
         this.successor = successor;
+        this.key = key;
     }
 
     public Host getSuccessor() {
         return this.successor;
     }
 
+    public BigInteger getKey() {
+        return this.key;
+    }
+
     @Override
     public String toString() {
         return "GetSuccessorMessage{" +
+                "key=" + key +
                 "successor=" + successor.toString() +
                 '}';
     }
