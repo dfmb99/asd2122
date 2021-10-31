@@ -6,7 +6,10 @@ import pt.unl.fct.di.novasys.network.ISerializer;
 import pt.unl.fct.di.novasys.network.data.Host;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.math.BigInteger;
+import java.util.HashSet;
+import java.util.Set;
 
 public class FindSuccessorMessage extends ProtoMessage {
 
@@ -40,13 +43,17 @@ public class FindSuccessorMessage extends ProtoMessage {
     public static ISerializer<FindSuccessorMessage> serializer = new ISerializer<>() {
         @Override
         public void serialize(FindSuccessorMessage sampleMessage, ByteBuf out) throws IOException {
-            // TODO: implement
+            Host.serializer.serialize(sampleMessage.host, out);
+            byte[] keyBytes = sampleMessage.key.toByteArray();
+            out.writeInt(keyBytes.length);
+            out.writeBytes(keyBytes);
         }
 
         @Override
         public FindSuccessorMessage deserialize(ByteBuf in) throws IOException {
-            // TODO: implement
-            return null;
+            Host host = Host.serializer.deserialize(in);
+            BigInteger key = new BigInteger(in.readBytes(in.readInt()).array());
+            return new FindSuccessorMessage(key, host);
         }
     };
 }

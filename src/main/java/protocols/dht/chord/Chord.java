@@ -88,7 +88,11 @@ public class Chord extends GenericProtocol {
             pendingConnections.add(contactHost);
             openConnection(contactHost);
             FindSuccessorMessage msg = new FindSuccessorMessage(myKey, myself);
-            Objects.requireNonNull(pendingMessages.put(contactHost, new LinkedList<>())).add(msg);
+
+            List<ProtoMessage> msgs = new LinkedList<ProtoMessage>();
+            pendingMessages.put(contactHost, msgs);
+            msgs.add(msg);
+
         }
         else {  // create ring
             predecessor = null;
@@ -120,18 +124,18 @@ public class Chord extends GenericProtocol {
 
 
     private void uponOutConnectionFailed(OutConnectionFailed<ProtoMessage> event, int channelId) {
-        //logger.debug("Connection to {} failed cause: {}", event.getNode(), event.getCause());
+        logger.debug("Connection to {} failed cause: {}", event.getNode(), event.getCause());
         //pending.remove(event.getNode());
     }
 
 
     private void uponInConnectionUp(InConnectionUp event, int channelId) {
-        //logger.trace("Connection from {} is up", event.getNode());
+        logger.trace("Connection from {} is up", event.getNode());
     }
 
 
     private void uponInConnectionDown(InConnectionDown event, int channelId) {
-        //logger.trace("Connection from {} is down, cause: {}", event.getNode(), event.getCause());
+        logger.trace("Connection from {} is down, cause: {}", event.getNode(), event.getCause());
     }
 
     /*--------------------------------- Messages ---------------------------------------- */
