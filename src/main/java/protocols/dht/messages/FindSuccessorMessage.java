@@ -6,21 +6,22 @@ import pt.unl.fct.di.novasys.network.ISerializer;
 import pt.unl.fct.di.novasys.network.data.Host;
 
 import java.io.IOException;
+import java.math.BigInteger;
 
-public class SucessorMessage extends ProtoMessage {
+public class FindSuccessorMessage extends ProtoMessage {
 
     public final static short MSG_ID = 103;
 
-    private final int id;
+    private final BigInteger id;
     private final Host host;
 
-    public SucessorMessage(int id, Host host) {
+    public FindSuccessorMessage(BigInteger id, Host host) {
         super(MSG_ID);
         this.id = id;
         this.host = host;
     }
 
-    public int getNodeId() {
+    public BigInteger getNodeId() {
         return this.id;
     }
 
@@ -30,20 +31,20 @@ public class SucessorMessage extends ProtoMessage {
 
     @Override
     public String toString() {
-        return "GetSucessorMessage{" +
+        return "GetSuccessorMessage{" +
                 "id=" + id +
                 "host=" + host +
                 '}';
     }
 
-    public static ISerializer<SucessorMessage> serializer = new ISerializer<>() {
+    public static ISerializer<FindSuccessorMessage> serializer = new ISerializer<>() {
         @Override
-        public void serialize(SucessorMessage sampleMessage, ByteBuf out) throws IOException {
+        public void serialize(FindSuccessorMessage sampleMessage, ByteBuf out) throws IOException {
             // TODO: implement
         }
 
         @Override
-        public SucessorMessage deserialize(ByteBuf in) throws IOException {
+        public FindSuccessorMessage deserialize(ByteBuf in) throws IOException {
             // TODO: implement
             return null;
         }
