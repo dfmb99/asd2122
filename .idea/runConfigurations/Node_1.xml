@@ -1,0 +1,11 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Node 1" type="Application" factoryName="Application">
+    <option name="MAIN_CLASS_NAME" value="Main" />
+    <module name="asd2122" />
+    <option name="PROGRAM_PARAMETERS" value="contact=127.0.0.1:8080 port=8081" />
+    <option name="VM_PARAMETERS" value="-ea -DlogFilename=8081" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
