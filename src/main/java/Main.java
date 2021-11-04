@@ -4,8 +4,7 @@ import java.util.Properties;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import protocols.apps.AutomatedApplication;
-import protocols.dht.chord.Chord;
+import protocols.dht.chord.ChordProtocol;
 import pt.unl.fct.di.novasys.babel.core.Babel;
 import pt.unl.fct.di.novasys.network.data.Host;
 import utils.InterfaceToIp;
@@ -48,7 +47,7 @@ public class Main {
         // Storage Protocol
         //StorageProtocol storage = new ...; /**You need to uncomment this line and define the protocol**/
         // DHT Protocol
-        Chord dht = new Chord(props, myself);
+        ChordProtocol dht = new ChordProtocol(props, myself);
 
         //Register applications in babel
         //babel.registerProtocol(app);

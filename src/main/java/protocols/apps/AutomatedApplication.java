@@ -139,7 +139,7 @@ public class AutomatedApplication extends GenericProtocol {
 		new Random(this.localIndex*1000+this.storedKeys).nextBytes(content);
 		StoreRequest request = new StoreRequest(this.myKeys.get(this.storedKeys), content);
 		sendRequest(request, storageProtoId);
-		logger.info("{}: Storing content with name: {} with size {} bytes (requestID {})", self, request.getName(), content.length, request.getRequestUID());
+		logger.info("{}: Storing content with name: {} with size {} bytes (requestID {})", self, request.getName(), content.length, request.getRequestId());
 		this.storeRequests++;
 	}
 
@@ -147,7 +147,7 @@ public class AutomatedApplication extends GenericProtocol {
 		String name = this.otherKeys.get(r.nextInt(this.otherKeys.size()));
 		
 		RetrieveRequest request = new RetrieveRequest(name);
-		logger.info("{}: Sending Retrieve request for content with key: {} (request ID {})", self, request.getName(), request.getRequestUID());
+		logger.info("{}: Sending Retrieve request for content with key: {} (request ID {})", self, request.getName(), request.getRequestId());
 		//And send it to the storage protocol
 		sendRequest(request, storageProtoId);
 		this.retrieveRequests++;
@@ -167,7 +167,7 @@ public class AutomatedApplication extends GenericProtocol {
 			new Random(this.localIndex*1000+this.storedKeys).nextBytes(content);
 			StoreRequest request = new StoreRequest(this.myKeys.get(this.storedKeys), content);
 			sendRequest(request, storageProtoId);
-			logger.info("{}: Storing content with name: {} with size {} bytes (requestID {})", self, request.getName(), content.length, request.getRequestUID());
+			logger.info("{}: Storing content with name: {} with size {} bytes (requestID {})", self, request.getName(), content.length, request.getRequestId());
 			this.storeRequests++;
 		}
 	}

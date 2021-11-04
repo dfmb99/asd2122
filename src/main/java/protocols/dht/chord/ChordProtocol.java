@@ -2,7 +2,6 @@ package protocols.dht.chord;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import protocols.dht.DHT;
 import protocols.dht.chord.messages.*;
 import protocols.dht.chord.types.Node;
 import protocols.dht.notifications.ChannelCreated;
@@ -11,6 +10,7 @@ import protocols.dht.chord.timers.InfoTimer;
 import protocols.dht.chord.timers.KeepAliveTimer;
 import protocols.dht.chord.timers.StabilizeTimer;
 import protocols.dht.notifications.LookupResult;
+import protocols.dht.requests.LookupRequest;
 import pt.unl.fct.di.novasys.babel.core.GenericProtocol;
 import pt.unl.fct.di.novasys.babel.exceptions.HandlerRegistrationException;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
@@ -24,13 +24,13 @@ import java.math.BigInteger;
 import java.net.InetAddress;
 import java.util.*;
 
-public class Chord extends GenericProtocol implements DHT  {
+public class ChordProtocol extends GenericProtocol {
 
-    private static final Logger logger = LogManager.getLogger(Chord.class);
+    private static final Logger logger = LogManager.getLogger(ChordProtocol.class);
 
     // Protocol information, to register in babel
     public static final short PROTOCOL_ID = 201;
-    public static final String PROTOCOL_NAME = "Chord";
+    public static final String PROTOCOL_NAME = "ChordProtocol";
 
     private final int m;
     private final Ring ring;
@@ -41,7 +41,7 @@ public class Chord extends GenericProtocol implements DHT  {
 
     private final int channelId; //Id of the created channel
 
-    public Chord(Properties props, Host self) throws IOException, HandlerRegistrationException {
+    public ChordProtocol(Properties props, Host self) throws IOException, HandlerRegistrationException {
         super(PROTOCOL_NAME, PROTOCOL_ID);
 
         int numberOfNodes = Integer.parseInt(props.getProperty("number_of_nodes"));
@@ -62,6 +62,9 @@ public class Chord extends GenericProtocol implements DHT  {
         channelProps.setProperty(TCPChannel.HEARTBEAT_TOLERANCE_KEY, props.getProperty("heartbeat_tolerance", "3000")); //Time passed without heartbeats until closing a connection
         channelProps.setProperty(TCPChannel.CONNECT_TIMEOUT_KEY, props.getProperty("tcp_timeout", "6000")); //TCP connect timeout
         channelId = createChannel(TCPChannel.NAME, channelProps); //Create the channel with the given properties
+
+        /*--------------------- Register Request Handlers ----------------------------- */
+        registerRequestHandler(LookupRequest.REQUEST_ID, this::uponLookupRequest);
 
         /*-------------------- Register Channel Events ------------------------------- */
         registerChannelEventHandler(channelId, OutConnectionDown.EVENT_ID, this::uponOutConnectionDown);
@@ -346,16 +349,15 @@ public class Chord extends GenericProtocol implements DHT  {
 
     /*----------------------------------- Search --------------------------------------- */
 
-    @Override
-    public void Lookup(BigInteger fullKey) {
-        logger.info("Lookup request for {}", fullKey);
-        BigInteger key = fullKey.shiftRight(fullKey.bitLength() - m);
+    public void uponLookupRequest(LookupRequest request, short sourceProto) {
+        logger.info("Lookup request for {}", request.getFullKey());
+        BigInteger key = request.getFullKey().shiftRight(request.getFullKey().bitLength() - m);
         if(ring.InBounds(key, self.getId(), getSuccessor().getId())){
-            triggerNotification(new LookupResult(fullKey, getSuccessor()));
+            triggerNotification(new LookupResult(request.getUid(), request.getFullKey(), getSuccessor()));
         }
         else{
             Node closestPrecedingNode = closestPrecedingNode(key);
-            dispatchMessage(new FindSuccessorMessage(fullKey, self.getHost()), closestPrecedingNode.getHost());
+            dispatchMessage(new FindSuccessorMessage(request.getUid(), request.getFullKey(), self.getHost()), closestPrecedingNode.getHost());
         }
     }
 
@@ -363,7 +365,7 @@ public class Chord extends GenericProtocol implements DHT  {
         logger.info("Received {} from {}", msg, from);
         BigInteger key = msg.getKey(m);
         if(ring.InBounds(key, self.getId(), getSuccessor().getId())){
-            dispatchMessage(new FindSuccessorReplyMessage(msg.getFullKey(), getSuccessor()), msg.getHost());
+            dispatchMessage(new FindSuccessorReplyMessage(msg.getRequestId(), msg.getFullKey(), getSuccessor()), msg.getHost());
         }
         else{
             Node closestPrecedingNode = closestPrecedingNode(key);
@@ -373,7 +375,7 @@ public class Chord extends GenericProtocol implements DHT  {
 
     private void UponFindSuccessorReplyMessage(FindSuccessorReplyMessage msg, Host from, short sourceProto, int channelId) {
         logger.info("Received {} from {}", msg, from);
-        triggerNotification(new LookupResult(msg.getFullKey(), msg.getSuccessor()));
+        triggerNotification(new LookupResult(msg.getRequestId(), msg.getFullKey(), msg.getSuccessor()));
     }
 
     /*----------------------------------- Aux ---------------------------------------- */

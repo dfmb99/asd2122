@@ -1,20 +1,22 @@
 package protocols.storage;
 
+import channel.notifications.ChannelCreated;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import protocols.dht.replies.LookupReply;
+import protocols.dht.notifications.LookupResult;
 import protocols.dht.requests.LookupRequest;
 import protocols.storage.requests.RetrieveRequest;
 import protocols.storage.requests.StoreRequest;
 import pt.unl.fct.di.novasys.babel.core.GenericProtocol;
 import pt.unl.fct.di.novasys.babel.exceptions.HandlerRegistrationException;
+import pt.unl.fct.di.novasys.babel.generic.ProtoNotification;
 import pt.unl.fct.di.novasys.network.data.Host;
 
-import java.io.IOException;
 import java.math.BigInteger;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.UUID;
 
 public class StorageProtocol extends GenericProtocol {
 
@@ -24,21 +26,22 @@ public class StorageProtocol extends GenericProtocol {
     public static final String PROTOCOL_NAME = "StorageProtocol";
     public static final short PROTOCOL_ID = 200;
 
-    //
-    private static final short STORE_REQUEST = 0;
-    private static final short RETRIEVE_REQUEST = 1;
+    enum RequestType {
+        STORE_REQUEST,
+        RETRIEVE_REQUEST
+    }
 
     private final short dhtProtoId;
 
-    private final Host myself; //My own address/port
+    private final Host myself;
 
-    private Map<Short, Short> lookupReqs;    // (k, v) = (id of the request, type of request)
+    private Map<UUID, RequestType> pendingRequests;
 
     public StorageProtocol(Host host, short dhtProtoId){
         super(PROTOCOL_NAME, PROTOCOL_ID);
         this.dhtProtoId = dhtProtoId;
         this.myself = host;
-        this.lookupReqs = new HashMap<>();
+        this.pendingRequests = new HashMap<>();
     }
 
     @Override
@@ -48,29 +51,25 @@ public class StorageProtocol extends GenericProtocol {
         registerRequestHandler(StoreRequest.REQUEST_ID, this::uponStoreRequest);
         registerRequestHandler(StoreRequest.REQUEST_ID, this::uponRetrieveRequest);
 
-        /*--------------------- Register Reply Handlers ----------------------------- */
-        registerReplyHandler(LookupReply.REPLY_ID, this::uponLookupReply);
+        /*--------------------- Register Notification Handlers ----------------------------- */
+        //subscribeNotification(ChannelCreated.NOTIFICATION_ID, this::uponChannelCreated);
+        subscribeNotification(LookupResult.NOTIFICATION_ID, this::uponLookupResult);
     }
 
     private void uponStoreRequest(StoreRequest request, short sourceProto) {
-
         LookupRequest lookupRequest = new LookupRequest(BigInteger.valueOf(request.getId()));
-        lookupReqs.put(request.getId(), STORE_REQUEST);
         sendRequest(lookupRequest, dhtProtoId);
-
+        pendingRequests.put(request.getRequestId(), RequestType.STORE_REQUEST);
     }
 
     private void uponRetrieveRequest(RetrieveRequest request, short sourceProto) {
-
         LookupRequest lookupRequest = new LookupRequest(BigInteger.valueOf(request.getId()));
-        lookupReqs.put(request.getId(), RETRIEVE_REQUEST);
         sendRequest(lookupRequest, dhtProtoId);
-
+        pendingRequests.put(request.getRequestId(), RequestType.RETRIEVE_REQUEST);
     }
 
-    private void uponLookupReply(LookupReply reply, short sourceProto){
-
-        switch(lookupReqs.get(reply.getId())){
+    private void uponLookupResult(LookupResult notification, short sourceProto) {
+        switch(pendingRequests.get(notification.getRequestId())){
             case STORE_REQUEST:
                 // TODO
                 break;

@@ -17,7 +17,7 @@ public class RetrieveRequest extends ProtoRequest {
 		this.uid = UUID.randomUUID();
 	}
 	
-	public UUID getRequestUID() {
+	public UUID getRequestId() {
 		return this.uid;
 	}
 	
