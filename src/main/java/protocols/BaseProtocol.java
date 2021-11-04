@@ -3,12 +3,14 @@ package protocols;
 import org.apache.logging.log4j.Logger;
 import pt.unl.fct.di.novasys.babel.core.GenericProtocol;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
+import pt.unl.fct.di.novasys.channel.tcp.TCPChannel;
 import pt.unl.fct.di.novasys.channel.tcp.events.*;
 import pt.unl.fct.di.novasys.network.data.Host;
 
+import java.io.IOException;
 import java.util.*;
 
-public class BaseProtocol extends GenericProtocol {
+public abstract class BaseProtocol extends GenericProtocol {
 
     private final Logger logger;
 
@@ -16,12 +18,23 @@ public class BaseProtocol extends GenericProtocol {
     private final Set<Host> pendingConnections;
     private final Map<Host, List<ProtoMessage>> pendingMessages;
 
-    public BaseProtocol(Properties props, Host self, String protocolName, short protocolId, Logger logger) {
+    protected final int channelId;
+
+    public BaseProtocol(Properties props, Host self, String protocolName, short protocolId, Logger logger) throws IOException {
         super(protocolName, protocolId);
         this.logger = logger;
         openConnections = new HashSet<>();
         pendingConnections = new HashSet<>();
         pendingMessages = new HashMap<>();
+
+        Properties channelProps = new Properties();
+        channelProps.setProperty(TCPChannel.ADDRESS_KEY, props.getProperty("address")); //The address to bind to
+        channelProps.setProperty(TCPChannel.PORT_KEY, props.getProperty("port")); //The port to bind to
+        channelProps.setProperty(TCPChannel.METRICS_INTERVAL_KEY, props.getProperty("channel_metrics_interval", "1000")); //The interval to receive channel metrics
+        channelProps.setProperty(TCPChannel.HEARTBEAT_INTERVAL_KEY, props.getProperty("heartbeat_interval", "1000")); //Heartbeats interval for established connections
+        channelProps.setProperty(TCPChannel.HEARTBEAT_TOLERANCE_KEY, props.getProperty("heartbeat_tolerance", "3000")); //Time passed without heartbeats until closing a connection
+        channelProps.setProperty(TCPChannel.CONNECT_TIMEOUT_KEY, props.getProperty("tcp_timeout", "6000")); //TCP connect timeout
+        channelId = createChannel(TCPChannel.NAME, channelProps);
     }
 
     @Override

@@ -39,8 +39,6 @@ public class ChordProtocol extends BaseProtocol {
     private Node predecessor;
     private Node[] fingers;
 
-    private final int channelId;
-
     public ChordProtocol(Properties props, Host self) throws IOException, HandlerRegistrationException {
         super(props, self, PROTOCOL_NAME, PROTOCOL_ID, logger);
 
@@ -51,17 +49,6 @@ public class ChordProtocol extends BaseProtocol {
         this.self = new Node(self,m);
         this.predecessor = null;
         this.fingers = new Node[m];
-
-        String cMetricsInterval = props.getProperty("channel_metrics_interval", "1000");
-        //Create a properties object to setup channel-specific properties. See the channel description for more details.
-        Properties channelProps = new Properties();
-        channelProps.setProperty(TCPChannel.ADDRESS_KEY, props.getProperty("address")); //The address to bind to
-        channelProps.setProperty(TCPChannel.PORT_KEY, props.getProperty("port")); //The port to bind to
-        channelProps.setProperty(TCPChannel.METRICS_INTERVAL_KEY, cMetricsInterval); //The interval to receive channel metrics
-        channelProps.setProperty(TCPChannel.HEARTBEAT_INTERVAL_KEY, props.getProperty("heartbeat_interval", "1000")); //Heartbeats interval for established connections
-        channelProps.setProperty(TCPChannel.HEARTBEAT_TOLERANCE_KEY, props.getProperty("heartbeat_tolerance", "3000")); //Time passed without heartbeats until closing a connection
-        channelProps.setProperty(TCPChannel.CONNECT_TIMEOUT_KEY, props.getProperty("tcp_timeout", "6000")); //TCP connect timeout
-        channelId = createChannel(TCPChannel.NAME, channelProps); //Create the channel with the given properties
 
         /*--------------------- Register Request Handlers ----------------------------- */
         registerRequestHandler(LookupRequest.REQUEST_ID, this::uponLookupRequest);
