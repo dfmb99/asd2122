@@ -8,7 +8,7 @@ import java.io.IOException;
 
 public class KeepAliveMessage extends ProtoMessage {
 
-    public final static short MSG_ID = 110;
+    public final static short MSG_ID = 107;
 
     public KeepAliveMessage() {
         super(MSG_ID);

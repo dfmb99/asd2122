@@ -4,7 +4,7 @@ import pt.unl.fct.di.novasys.babel.generic.ProtoNotification;
 
 public class ChannelCreated extends ProtoNotification {
 
-    public static final short NOTIFICATION_ID = 103;
+    public static final short NOTIFICATION_ID = 115;
 
     private final int channelId;
 

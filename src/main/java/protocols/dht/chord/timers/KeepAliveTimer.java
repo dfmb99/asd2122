@@ -4,7 +4,7 @@ import pt.unl.fct.di.novasys.babel.generic.ProtoTimer;
 
 public class KeepAliveTimer extends ProtoTimer {
 
-    public static final short TIMER_ID = 104;
+    public static final short TIMER_ID = 113;
 
     public KeepAliveTimer() {
         super(TIMER_ID);

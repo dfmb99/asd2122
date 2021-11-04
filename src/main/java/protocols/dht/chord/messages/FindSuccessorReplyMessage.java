@@ -10,19 +10,19 @@ import java.math.BigInteger;
 
 public class FindSuccessorReplyMessage extends ProtoMessage {
 
-    public final static short MSG_ID = 106;
+    public final static short MSG_ID = 102;
 
-    private final BigInteger key;
+    private final BigInteger fullKey;
     private final Node successor;
 
-    public FindSuccessorReplyMessage(BigInteger key, Node successor) {
+    public FindSuccessorReplyMessage(BigInteger fullKey, Node successor) {
         super(MSG_ID);
-        this.key = key;
+        this.fullKey = fullKey;
         this.successor = successor;
     }
 
-    public BigInteger getKey() {
-        return key;
+    public BigInteger getFullKey() {
+        return fullKey;
     }
 
     public Node getSuccessor() {
@@ -32,18 +32,18 @@ public class FindSuccessorReplyMessage extends ProtoMessage {
     @Override
     public String toString() {
         return "FindSuccessorReplyMessage{" +
-                "key=" + key.toString() +
+                "fullKey=" + fullKey.toString() +
                 "successor=" + successor.toString() +
                 '}';
     }
 
     public static ISerializer<FindSuccessorReplyMessage> serializer = new ISerializer<>() {
         @Override
-        public void serialize(FindSuccessorReplyMessage msg, ByteBuf out) throws IOException {
-            byte[] keyBytes = msg.key.toByteArray();
+        public void serialize(FindSuccessorReplyMessage sampleMessage, ByteBuf out) throws IOException {
+            byte[] keyBytes = sampleMessage.fullKey.toByteArray();
             out.writeInt(keyBytes.length);
             out.writeBytes(keyBytes);
-            Node.serializer.serialize(msg.getSuccessor(), out);
+            Node.serializer.serialize(sampleMessage.getSuccessor(), out);
         }
 
         @Override

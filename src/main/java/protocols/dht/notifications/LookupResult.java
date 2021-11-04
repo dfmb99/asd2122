@@ -7,7 +7,7 @@ import java.math.BigInteger;
 
 public class LookupResult extends ProtoNotification {
 
-    public static final short NOTIFICATION_ID = 111;
+    public static final short NOTIFICATION_ID = 116;
 
     private final BigInteger key;
     private final Node node;

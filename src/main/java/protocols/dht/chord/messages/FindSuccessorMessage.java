@@ -10,19 +10,23 @@ import java.math.BigInteger;
 
 public class FindSuccessorMessage extends ProtoMessage {
 
-    public final static short MSG_ID = 105;
+    public final static short MSG_ID = 101;
 
-    private final BigInteger key;
+    private final BigInteger fullKey;
     private final Host host; // process who issued the LookUp request
 
-    public FindSuccessorMessage(BigInteger key, Host host) {
+    public FindSuccessorMessage(BigInteger fullKey, Host host) {
         super(MSG_ID);
-        this.key = key;
+        this.fullKey = fullKey;
         this.host = host;
     }
 
-    public BigInteger getKey() {
-        return this.key;
+    public BigInteger getFullKey() {
+        return this.fullKey;
+    }
+
+    public BigInteger getKey(int m) {
+        return this.fullKey.shiftRight(fullKey.bitLength() - m);
     }
 
     public Host getHost() {
@@ -32,7 +36,7 @@ public class FindSuccessorMessage extends ProtoMessage {
     @Override
     public String toString() {
         return "FindSuccessorMessage{" +
-                "key=" + key +
+                "fullKey=" + fullKey +
                 "host=" + host +
                 '}';
     }
@@ -40,7 +44,7 @@ public class FindSuccessorMessage extends ProtoMessage {
     public static ISerializer<FindSuccessorMessage> serializer = new ISerializer<>() {
         @Override
         public void serialize(FindSuccessorMessage sampleMessage, ByteBuf out) throws IOException {
-            byte[] keyBytes = sampleMessage.key.toByteArray();
+            byte[] keyBytes = sampleMessage.fullKey.toByteArray();
             out.writeInt(keyBytes.length);
             out.writeBytes(keyBytes);
             Host.serializer.serialize(sampleMessage.host, out);

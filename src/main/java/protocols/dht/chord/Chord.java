@@ -44,22 +44,23 @@ public class Chord extends GenericProtocol implements DHT  {
     public Chord(Properties props, Host self) throws IOException, HandlerRegistrationException {
         super(PROTOCOL_NAME, PROTOCOL_ID);
 
-        this.m = Integer.parseInt(props.getProperty("m"));
+        int numberOfNodes = Integer.parseInt(props.getProperty("number_of_nodes"));
+        this.m = 2*(int)(Math.log(numberOfNodes) / Math.log(2));
         this.ring = new Ring(BigInteger.TWO.pow(m));
 
-        this.self = new Node(self);
+        this.self = new Node(self,m);
         this.predecessor = null;
         this.fingers = new Node[m];
 
-        String cMetricsInterval = props.getProperty("channel_metrics_interval", "10000"); //10 seconds
+        String cMetricsInterval = props.getProperty("channel_metrics_interval", "1000");
         //Create a properties object to setup channel-specific properties. See the channel description for more details.
         Properties channelProps = new Properties();
         channelProps.setProperty(TCPChannel.ADDRESS_KEY, props.getProperty("address")); //The address to bind to
         channelProps.setProperty(TCPChannel.PORT_KEY, props.getProperty("port")); //The port to bind to
         channelProps.setProperty(TCPChannel.METRICS_INTERVAL_KEY, cMetricsInterval); //The interval to receive channel metrics
-        channelProps.setProperty(TCPChannel.HEARTBEAT_INTERVAL_KEY, "1000"); //Heartbeats interval for established connections
-        channelProps.setProperty(TCPChannel.HEARTBEAT_TOLERANCE_KEY, "3000"); //Time passed without heartbeats until closing a connection
-        channelProps.setProperty(TCPChannel.CONNECT_TIMEOUT_KEY, "5000"); //TCP connect timeout
+        channelProps.setProperty(TCPChannel.HEARTBEAT_INTERVAL_KEY, props.getProperty("heartbeat_interval", "1000")); //Heartbeats interval for established connections
+        channelProps.setProperty(TCPChannel.HEARTBEAT_TOLERANCE_KEY, props.getProperty("heartbeat_tolerance", "3000")); //Time passed without heartbeats until closing a connection
+        channelProps.setProperty(TCPChannel.CONNECT_TIMEOUT_KEY, props.getProperty("tcp_timeout", "6000")); //TCP connect timeout
         channelId = createChannel(TCPChannel.NAME, channelProps); //Create the channel with the given properties
 
         /*-------------------- Register Channel Events ------------------------------- */
@@ -216,12 +217,16 @@ public class Chord extends GenericProtocol implements DHT  {
     public void init(Properties props) {
         buildRing(props);
 
-        int stabilizeInterval = Integer.parseInt(props.getProperty("chord_stabilize_interval", "10000"));
-        if (stabilizeInterval > 0)
-            setupPeriodicTimer(new InfoTimer(), stabilizeInterval, stabilizeInterval);
+        int keepAliveInterval = Integer.parseInt(props.getProperty("chord_keep_alive_interval", "4000"));
+        setupPeriodicTimer(new KeepAliveTimer(), keepAliveInterval, keepAliveInterval);
 
+        int stabilizeInterval = Integer.parseInt(props.getProperty("chord_stabilize_interval", "300"));
+        setupPeriodicTimer(new StabilizeTimer(), stabilizeInterval, stabilizeInterval);
 
-        int metricsInterval = Integer.parseInt(props.getProperty("protocol_metrics_interval", "10000"));
+        int fixFingerInterval = Integer.parseInt(props.getProperty("chord_fix_finger_interval", "300"));
+        setupPeriodicTimer(new FixFingersTimer(), fixFingerInterval, fixFingerInterval);
+
+        int metricsInterval = Integer.parseInt(props.getProperty("protocol_metrics_interval", "1000"));
         if (metricsInterval > 0)
             setupPeriodicTimer(new InfoTimer(), metricsInterval, metricsInterval);
 
@@ -239,10 +244,10 @@ public class Chord extends GenericProtocol implements DHT  {
         try {
             String contact = props.getProperty("contact");
             String[] hostElems = contact.split(":");
-            Node contactNode = new Node(new Host(InetAddress.getByName(hostElems[0]), Short.parseShort(hostElems[1])));
+            Node contactNode = new Node(new Host(InetAddress.getByName(hostElems[0]), Short.parseShort(hostElems[1])), m);
             dispatchMessage(new JoinRingMessage(self), contactNode.getHost());
         } catch (Exception e) {
-            logger.error("Invalid contact on configuration: '" + props.getProperty("contacts"));
+            logger.error("Invalid contact on configuration: '" + props.getProperty("contact"));
             e.printStackTrace();
             System.exit(-1);
         }
@@ -288,7 +293,7 @@ public class Chord extends GenericProtocol implements DHT  {
 
     private void UponNotifySuccessorMessage(NotifySuccessorMessage msg, Host from, short sourceProto, int channelId) {
         logger.info("Received {} from {}", msg, from);
-        Node node = new Node(from);
+        Node node = new Node(from, m);
         if(ring.InBounds(node.getId(), predecessor.getId(), self.getId()))
             setPredecessor(node);
     }
@@ -342,31 +347,33 @@ public class Chord extends GenericProtocol implements DHT  {
     /*----------------------------------- Search --------------------------------------- */
 
     @Override
-    public void Lookup(BigInteger key) {
-        logger.info("Lookup request for {}", key);
+    public void Lookup(BigInteger fullKey) {
+        logger.info("Lookup request for {}", fullKey);
+        BigInteger key = fullKey.shiftRight(fullKey.bitLength() - m);
         if(ring.InBounds(key, self.getId(), getSuccessor().getId())){
-            triggerNotification(new LookupResult(key, getSuccessor()));
+            triggerNotification(new LookupResult(fullKey, getSuccessor()));
         }
         else{
             Node closestPrecedingNode = closestPrecedingNode(key);
-            dispatchMessage(new FindSuccessorMessage(key, self.getHost()), closestPrecedingNode.getHost());
+            dispatchMessage(new FindSuccessorMessage(fullKey, self.getHost()), closestPrecedingNode.getHost());
         }
     }
 
     private void UponFindSuccessorMessage(FindSuccessorMessage msg, Host from, short sourceProto, int channelId) {
         logger.info("Received {} from {}", msg, from);
-        if(ring.InBounds(msg.getKey(), self.getId(), getSuccessor().getId())){
-            dispatchMessage(new FindSuccessorReplyMessage(msg.getKey(), getSuccessor()), msg.getHost());
+        BigInteger key = msg.getKey(m);
+        if(ring.InBounds(key, self.getId(), getSuccessor().getId())){
+            dispatchMessage(new FindSuccessorReplyMessage(msg.getFullKey(), getSuccessor()), msg.getHost());
         }
         else{
-            Node closestPrecedingNode = closestPrecedingNode(msg.getKey());
+            Node closestPrecedingNode = closestPrecedingNode(key);
             dispatchMessage(msg, closestPrecedingNode.getHost());
         }
     }
 
     private void UponFindSuccessorReplyMessage(FindSuccessorReplyMessage msg, Host from, short sourceProto, int channelId) {
         logger.info("Received {} from {}", msg, from);
-        triggerNotification(new LookupResult(msg.getKey(), msg.getSuccessor()));
+        triggerNotification(new LookupResult(msg.getFullKey(), msg.getSuccessor()));
     }
 
     /*----------------------------------- Aux ---------------------------------------- */

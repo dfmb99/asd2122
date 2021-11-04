@@ -10,7 +10,7 @@ import java.io.IOException;
 
 public class JoinRingReplyMessage extends ProtoMessage {
 
-    public final static short MSG_ID = 104;
+    public final static short MSG_ID = 106;
 
     private final Node successor;
 
@@ -31,8 +31,8 @@ public class JoinRingReplyMessage extends ProtoMessage {
     }
 
     public static ISerializer<JoinRingReplyMessage> serializer = new ISerializer<>() {
-        public void serialize(JoinRingReplyMessage msg, ByteBuf out) throws IOException {
-            Node.serializer.serialize(msg.getSuccessor(), out);
+        public void serialize(JoinRingReplyMessage sampleMessage, ByteBuf out) throws IOException {
+            Node.serializer.serialize(sampleMessage.getSuccessor(), out);
         }
 
         public JoinRingReplyMessage deserialize(ByteBuf in) throws IOException {

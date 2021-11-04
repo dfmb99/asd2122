@@ -11,7 +11,7 @@ import java.math.BigInteger;
 
 public class JoinRingMessage extends ProtoMessage {
 
-    public final static short MSG_ID = 103;
+    public final static short MSG_ID = 105;
 
     Node node;
 

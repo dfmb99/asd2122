@@ -30,8 +30,8 @@ public class GetPredecessorReplyMessage extends ProtoMessage {
     }
 
     public static ISerializer<GetPredecessorReplyMessage> serializer = new ISerializer<>() {
-        public void serialize(GetPredecessorReplyMessage msg, ByteBuf out) throws IOException {
-            Node.serializer.serialize(msg.getPredecessor(), out);
+        public void serialize(GetPredecessorReplyMessage sampleMessage, ByteBuf out) throws IOException {
+            Node.serializer.serialize(sampleMessage.getPredecessor(), out);
         }
 
         public GetPredecessorReplyMessage deserialize(ByteBuf in) throws IOException {

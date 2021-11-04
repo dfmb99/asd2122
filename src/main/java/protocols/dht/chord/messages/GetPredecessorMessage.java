@@ -8,7 +8,7 @@ import java.io.IOException;
 
 public class GetPredecessorMessage extends ProtoMessage {
 
-    public final static short MSG_ID = 107;
+    public final static short MSG_ID = 103;
 
     public GetPredecessorMessage() {
         super(MSG_ID);

@@ -8,7 +8,7 @@ import java.io.IOException;
 
 public class NotifySuccessorMessage extends ProtoMessage {
 
-    public final static short MSG_ID = 107;
+    public final static short MSG_ID = 108;
 
     public NotifySuccessorMessage() {
         super(MSG_ID);

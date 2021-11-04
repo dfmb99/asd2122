@@ -4,7 +4,7 @@ import pt.unl.fct.di.novasys.babel.generic.ProtoTimer;
 
 public class FixFingersTimer extends ProtoTimer {
 
-    public static final short TIMER_ID = 104;
+    public static final short TIMER_ID = 111;
 
     public FixFingersTimer() {
         super(TIMER_ID);
