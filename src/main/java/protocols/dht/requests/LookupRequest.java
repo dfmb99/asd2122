@@ -9,17 +9,17 @@ public class LookupRequest extends ProtoRequest {
 
     public final static short REQUEST_ID = 101;
 
-    private final BigInteger fullKey;
+    private final String name;
     private final UUID uid;
 
-    public LookupRequest(BigInteger fullKey) {
+    public LookupRequest(String name, UUID uid) {
         super(REQUEST_ID);
-        this.fullKey = fullKey;
-        this.uid = UUID.randomUUID();
+        this.name = name;
+        this.uid = uid;
     }
 
-    public BigInteger getFullKey() {
-        return fullKey;
+    public String getName() {
+        return name;
     }
 
     public UUID getUid() {

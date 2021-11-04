@@ -14,13 +14,13 @@ public class FindSuccessorMessage extends ProtoMessage {
     public final static short MSG_ID = 101;
 
     private final UUID requestId;
-    private final BigInteger fullKey;
+    private final BigInteger key;
     private final Host host;
 
-    public FindSuccessorMessage(UUID requestId, BigInteger fullKey, Host host) {
+    public FindSuccessorMessage(UUID requestId, BigInteger key, Host host) {
         super(MSG_ID);
         this.requestId = requestId;
-        this.fullKey = fullKey;
+        this.key = key;
         this.host = host;
     }
 
@@ -28,12 +28,8 @@ public class FindSuccessorMessage extends ProtoMessage {
         return requestId;
     }
 
-    public BigInteger getFullKey() {
-        return this.fullKey;
-    }
-
-    public BigInteger getKey(int m) {
-        return this.fullKey.shiftRight(fullKey.bitLength() - m);
+    public BigInteger getKey() {
+        return this.key;
     }
 
     public Host getHost() {
@@ -44,7 +40,7 @@ public class FindSuccessorMessage extends ProtoMessage {
     public String toString() {
         return "FindSuccessorMessage{" +
                 "requestId=" + requestId.toString() +
-                "fullKey=" + fullKey.toString() +
+                "key=" + key.toString() +
                 "host=" + host.toString() +
                 '}';
     }
@@ -54,7 +50,7 @@ public class FindSuccessorMessage extends ProtoMessage {
         public void serialize(FindSuccessorMessage sampleMessage, ByteBuf out) throws IOException {
             out.writeLong(sampleMessage.requestId.getMostSignificantBits());
             out.writeLong(sampleMessage.requestId.getLeastSignificantBits());
-            byte[] keyBytes = sampleMessage.fullKey.toByteArray();
+            byte[] keyBytes = sampleMessage.key.toByteArray();
             out.writeInt(keyBytes.length);
             out.writeBytes(keyBytes);
             Host.serializer.serialize(sampleMessage.host, out);

@@ -10,14 +10,13 @@ import protocols.dht.chord.timers.FixFingersTimer;
 import protocols.dht.chord.timers.InfoTimer;
 import protocols.dht.chord.timers.KeepAliveTimer;
 import protocols.dht.chord.timers.StabilizeTimer;
-import protocols.dht.notifications.LookupResult;
+import protocols.dht.replies.LookupReply;
 import protocols.dht.requests.LookupRequest;
-import pt.unl.fct.di.novasys.babel.core.GenericProtocol;
+import protocols.storage.StorageProtocol;
 import pt.unl.fct.di.novasys.babel.exceptions.HandlerRegistrationException;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
-import pt.unl.fct.di.novasys.channel.tcp.TCPChannel;
-import pt.unl.fct.di.novasys.channel.tcp.events.*;
 import pt.unl.fct.di.novasys.network.data.Host;
+import utils.HashGenerator;
 import utils.Ring;
 
 import java.io.IOException;
@@ -40,7 +39,7 @@ public class ChordProtocol extends BaseProtocol {
     private Node[] fingers;
 
     public ChordProtocol(Properties props, Host self) throws IOException, HandlerRegistrationException {
-        super(props, self, PROTOCOL_NAME, PROTOCOL_ID, logger);
+        super(props, self, PROTOCOL_NAME, PROTOCOL_ID, logger, true);
 
         int numberOfNodes = Integer.parseInt(props.getProperty("number_of_nodes"));
         this.m = 2*(int)(Math.log(numberOfNodes) / Math.log(2));
@@ -50,14 +49,17 @@ public class ChordProtocol extends BaseProtocol {
         this.predecessor = null;
         this.fingers = new Node[m];
 
-        /*--------------------- Register Request Handlers ----------------------------- */
-        registerRequestHandler(LookupRequest.REQUEST_ID, this::uponLookupRequest);
-
         /*--------------------- Register Timer Handlers ----------------------------- */
         registerTimerHandler(KeepAliveTimer.TIMER_ID, this::uponKeepAliveTime);
         registerTimerHandler(StabilizeTimer.TIMER_ID, this::uponStabilizeTime);
         registerTimerHandler(FixFingersTimer.TIMER_ID, this::uponFixFingersTime);
         registerTimerHandler(InfoTimer.TIMER_ID, this::uponInfoTime);
+
+        /*---------------------- Register Channel Events ------------------------------ */
+        registerChannelEvents();
+
+        /*--------------------- Register Request Handlers ----------------------------- */
+        registerRequestHandler(LookupRequest.REQUEST_ID, this::uponLookupRequest);
 
         /*---------------------- Register Message Handlers -------------------------- */
         registerMessageHandler(channelId, KeepAliveMessage.MSG_ID, this::UponKeepAliveMessage, this::uponKeepAliveMessageFail);
@@ -245,32 +247,32 @@ public class ChordProtocol extends BaseProtocol {
     /*----------------------------------- Search --------------------------------------- */
 
     public void uponLookupRequest(LookupRequest request, short sourceProto) {
-        logger.info("Lookup request for {}", request.getFullKey());
-        BigInteger key = request.getFullKey().shiftRight(request.getFullKey().bitLength() - m);
+        logger.info("Lookup request for {}", request.getName());
+        BigInteger fullKey = HashGenerator.generateHash(request.getName());
+        BigInteger key = fullKey.shiftRight(fullKey.bitLength() - m);
         if(ring.InBounds(key, self.getId(), getSuccessor().getId())){
-            triggerNotification(new LookupResult(request.getUid(), request.getFullKey(), getSuccessor()));
+            sendReply(new LookupReply(request.getUid(), getSuccessor()), StorageProtocol.PROTOCOL_ID);
         }
         else{
             Node closestPrecedingNode = closestPrecedingNode(key);
-            dispatchMessage(new FindSuccessorMessage(request.getUid(), request.getFullKey(), self.getHost()), closestPrecedingNode.getHost());
+            dispatchMessage(new FindSuccessorMessage(request.getUid(), key, self.getHost()), closestPrecedingNode.getHost());
         }
     }
 
     private void UponFindSuccessorMessage(FindSuccessorMessage msg, Host from, short sourceProto, int channelId) {
         logger.info("Received {} from {}", msg, from);
-        BigInteger key = msg.getKey(m);
-        if(ring.InBounds(key, self.getId(), getSuccessor().getId())){
-            dispatchMessage(new FindSuccessorReplyMessage(msg.getRequestId(), msg.getFullKey(), getSuccessor()), msg.getHost());
+        if(ring.InBounds(msg.getKey(), self.getId(), getSuccessor().getId())){
+            dispatchMessage(new FindSuccessorReplyMessage(msg.getRequestId(), msg.getKey(), getSuccessor()), msg.getHost());
         }
         else{
-            Node closestPrecedingNode = closestPrecedingNode(key);
+            Node closestPrecedingNode = closestPrecedingNode(msg.getKey());
             dispatchMessage(msg, closestPrecedingNode.getHost());
         }
     }
 
     private void UponFindSuccessorReplyMessage(FindSuccessorReplyMessage msg, Host from, short sourceProto, int channelId) {
         logger.info("Received {} from {}", msg, from);
-        triggerNotification(new LookupResult(msg.getRequestId(), msg.getFullKey(), msg.getSuccessor()));
+        sendReply(new LookupReply(msg.getRequestId(), msg.getSuccessor()), StorageProtocol.PROTOCOL_ID);
     }
 
     /*----------------------------------- Aux ---------------------------------------- */
