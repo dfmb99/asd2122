@@ -53,13 +53,6 @@ public class ChordProtocol extends BaseProtocol {
         /*--------------------- Register Request Handlers ----------------------------- */
         registerRequestHandler(LookupRequest.REQUEST_ID, this::uponLookupRequest);
 
-        /*-------------------- Register Channel Events ------------------------------- */
-        registerChannelEventHandler(channelId, OutConnectionDown.EVENT_ID, this::uponOutConnectionDown);
-        registerChannelEventHandler(channelId, OutConnectionFailed.EVENT_ID, this::uponOutConnectionFailed);
-        registerChannelEventHandler(channelId, OutConnectionUp.EVENT_ID, this::uponOutConnectionUp);
-        registerChannelEventHandler(channelId, InConnectionUp.EVENT_ID, this::uponInConnectionUp);
-        registerChannelEventHandler(channelId, InConnectionDown.EVENT_ID, this::uponInConnectionDown);
-
         /*--------------------- Register Timer Handlers ----------------------------- */
         registerTimerHandler(KeepAliveTimer.TIMER_ID, this::uponKeepAliveTime);
         registerTimerHandler(StabilizeTimer.TIMER_ID, this::uponStabilizeTime);
@@ -299,5 +292,9 @@ public class ChordProtocol extends BaseProtocol {
         //sb.append("PendingMembership: ").append(pending).append("\n");
         sb.append(getMetrics()); //getMetrics returns an object with the number of events of each type processed by this protocol.
         logger.info(sb);
+    }
+
+    protected void uponMessageFail(ProtoMessage msg, Host host, short destProto, Throwable throwable, int channelId) {
+        logger.error("Message {} to {} failed, reason: {}", msg, host, throwable);
     }
 }

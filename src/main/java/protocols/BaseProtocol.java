@@ -2,6 +2,7 @@ package protocols;
 
 import org.apache.logging.log4j.Logger;
 import pt.unl.fct.di.novasys.babel.core.GenericProtocol;
+import pt.unl.fct.di.novasys.babel.exceptions.HandlerRegistrationException;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.channel.tcp.TCPChannel;
 import pt.unl.fct.di.novasys.channel.tcp.events.*;
@@ -14,18 +15,18 @@ public abstract class BaseProtocol extends GenericProtocol {
 
     private final Logger logger;
 
+    protected final int channelId;
+    protected final Host self;
+
     private final Set<Host> openConnections;
     private final Set<Host> pendingConnections;
     private final Map<Host, List<ProtoMessage>> pendingMessages;
 
-    protected final int channelId;
-
-    public BaseProtocol(Properties props, Host self, String protocolName, short protocolId, Logger logger) throws IOException {
+    public BaseProtocol(Properties props, Host self, String protocolName, short protocolId, Logger logger, boolean registerChannelEvents) throws IOException, HandlerRegistrationException {
         super(protocolName, protocolId);
         this.logger = logger;
-        openConnections = new HashSet<>();
-        pendingConnections = new HashSet<>();
-        pendingMessages = new HashMap<>();
+
+        this.self = self;
 
         Properties channelProps = new Properties();
         channelProps.setProperty(TCPChannel.ADDRESS_KEY, props.getProperty("address")); //The address to bind to
@@ -35,6 +36,23 @@ public abstract class BaseProtocol extends GenericProtocol {
         channelProps.setProperty(TCPChannel.HEARTBEAT_TOLERANCE_KEY, props.getProperty("heartbeat_tolerance", "3000")); //Time passed without heartbeats until closing a connection
         channelProps.setProperty(TCPChannel.CONNECT_TIMEOUT_KEY, props.getProperty("tcp_timeout", "6000")); //TCP connect timeout
         channelId = createChannel(TCPChannel.NAME, channelProps);
+
+        /*-------------------- Register Channel Events ------------------------------- */
+        if(registerChannelEvents) {
+            registerChannelEventHandler(channelId, OutConnectionDown.EVENT_ID, this::uponOutConnectionDown);
+            registerChannelEventHandler(channelId, OutConnectionFailed.EVENT_ID, this::uponOutConnectionFailed);
+            registerChannelEventHandler(channelId, OutConnectionUp.EVENT_ID, this::uponOutConnectionUp);
+            registerChannelEventHandler(channelId, InConnectionUp.EVENT_ID, this::uponInConnectionUp);
+            registerChannelEventHandler(channelId, InConnectionDown.EVENT_ID, this::uponInConnectionDown);
+        }
+
+        openConnections = new HashSet<>();
+        pendingConnections = new HashSet<>();
+        pendingMessages = new HashMap<>();
+    }
+
+    public BaseProtocol(Properties props, Host self, String protocolName, short protocolId, Logger logger) throws IOException, HandlerRegistrationException {
+        this(props, self, protocolName, protocolId, logger, true);
     }
 
     @Override
@@ -51,6 +69,7 @@ public abstract class BaseProtocol extends GenericProtocol {
         openConnections.remove(peer);
         pendingConnections.remove(peer);
         pendingMessages.remove(peer);
+        closeConnection(peer);
     }
 
     protected void dispatchMessage(ProtoMessage message, Host peer) {
@@ -115,9 +134,5 @@ public abstract class BaseProtocol extends GenericProtocol {
         logger.trace("Connection from {} is down, cause: {}", peer, event.getCause());
         openConnections.remove(peer);
         pendingMessages.remove(peer);
-    }
-
-    protected void uponMessageFail(ProtoMessage msg, Host host, short destProto, Throwable throwable, int channelId) {
-        logger.error("Message {} to {} failed, reason: {}", msg, host, throwable);
     }
 }
