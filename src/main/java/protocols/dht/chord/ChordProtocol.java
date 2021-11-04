@@ -2,6 +2,7 @@ package protocols.dht.chord;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import protocols.BaseProtocol;
 import protocols.dht.chord.messages.*;
 import protocols.dht.chord.types.Node;
 import protocols.dht.notifications.ChannelCreated;
@@ -24,11 +25,10 @@ import java.math.BigInteger;
 import java.net.InetAddress;
 import java.util.*;
 
-public class ChordProtocol extends GenericProtocol {
+public class ChordProtocol extends BaseProtocol {
 
     private static final Logger logger = LogManager.getLogger(ChordProtocol.class);
 
-    // Protocol information, to register in babel
     public static final short PROTOCOL_ID = 201;
     public static final String PROTOCOL_NAME = "ChordProtocol";
 
@@ -39,10 +39,10 @@ public class ChordProtocol extends GenericProtocol {
     private Node predecessor;
     private Node[] fingers;
 
-    private final int channelId; //Id of the created channel
+    private final int channelId;
 
     public ChordProtocol(Properties props, Host self) throws IOException, HandlerRegistrationException {
-        super(PROTOCOL_NAME, PROTOCOL_ID);
+        super(props, self, PROTOCOL_NAME, PROTOCOL_ID, logger);
 
         int numberOfNodes = Integer.parseInt(props.getProperty("number_of_nodes"));
         this.m = 2*(int)(Math.log(numberOfNodes) / Math.log(2));
@@ -132,89 +132,6 @@ public class ChordProtocol extends GenericProtocol {
         this.fingers[i] = finger;
         mendConnection(finger.getHost());
     }
-
-    /*---------------------------------- Connections ---------------------------------- */
-
-    private final Set<Host> openConnections = new HashSet<>();
-    private final Set<Host> pendingConnections = new HashSet<>();
-    private final Map<Host, List<ProtoMessage>> pendingMessages = new HashMap<>();
-
-    private void mendConnection(Host peer) {
-        if(!openConnections.contains(peer) && !pendingConnections.contains(peer)) {
-            openConnection(peer);
-            pendingConnections.add(peer);
-        }
-    }
-
-    private void dispatchMessage(ProtoMessage message, Host peer) {
-        if(openConnections.contains(peer)) {
-            sendMessage(message, peer);
-        }
-        else if(pendingConnections.contains(peer)) {
-            pendingMessages.get(peer).add(message);
-        }
-        else {
-            openConnection(peer);
-            pendingConnections.add(peer);
-            pendingMessages.put(peer, new LinkedList<>(Collections.singleton(message)));
-        }
-    }
-
-    private void uponOutConnectionUp(OutConnectionUp event, int channelId) {
-        Host peer = event.getNode();
-        logger.info("Connection to {} is up", peer);
-        openConnections.add(peer);
-        pendingConnections.remove(peer);
-
-        for (ProtoMessage m : pendingMessages.get(peer))
-            sendMessage(m, peer);
-
-        pendingMessages.remove(peer);
-    }
-
-    private void uponOutConnectionDown(OutConnectionDown event, int channelId) {
-        Host peer = event.getNode();
-        logger.info("Connection to {} is down cause {}", peer, event.getCause());
-        openConnections.remove(peer);
-        pendingConnections.remove(peer);
-        pendingMessages.remove(peer);
-    }
-
-
-    private void uponOutConnectionFailed(OutConnectionFailed<ProtoMessage> event, int channelId) {
-        Host peer = event.getNode();
-        logger.info("Connection to {} failed cause: {}", event.getNode(), event.getCause());
-        openConnections.remove(peer);
-        pendingConnections.remove(peer);
-        pendingMessages.remove(peer);
-    }
-
-
-    private void uponInConnectionUp(InConnectionUp event, int channelId) {
-        Host peer = event.getNode();
-        logger.trace("Connection from {} is up", peer);
-        openConnections.add(peer);
-        pendingConnections.remove(peer);
-
-        for (ProtoMessage m : pendingMessages.get(peer))
-            sendMessage(m, peer);
-
-        pendingMessages.remove(peer);
-    }
-
-
-    private void uponInConnectionDown(InConnectionDown event, int channelId) {
-        Host peer = event.getNode();
-        logger.trace("Connection from {} is down, cause: {}", peer, event.getCause());
-        openConnections.remove(peer);
-        pendingMessages.remove(peer);
-    }
-
-    private void uponMessageFail(ProtoMessage msg, Host host, short destProto, Throwable throwable, int channelId) {
-        logger.error("Message {} to {} failed, reason: {}", msg, host, throwable);
-    }
-
-    /*--------------------------------- Initialization -------------------------------------- */
 
     @Override
     public void init(Properties props) {
@@ -341,9 +258,7 @@ public class ChordProtocol extends GenericProtocol {
 
     private void uponKeepAliveMessageFail(ProtoMessage msg, Host host, short destProto, Throwable throwable, int channelId) {
         logger.error("Keep Alive Message {} to {} failed, reason: {}", msg, host, throwable);
-        openConnections.remove(predecessor.getHost());
-        pendingConnections.remove(predecessor.getHost());
-        pendingMessages.remove(predecessor.getHost());
+        breakConnection(predecessor.getHost());
         predecessor = null;
     }
 
