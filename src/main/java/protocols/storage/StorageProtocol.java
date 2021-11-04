@@ -11,6 +11,7 @@ import pt.unl.fct.di.novasys.babel.core.GenericProtocol;
 import pt.unl.fct.di.novasys.babel.exceptions.HandlerRegistrationException;
 import pt.unl.fct.di.novasys.babel.generic.ProtoNotification;
 import pt.unl.fct.di.novasys.network.data.Host;
+import utils.HashGenerator;
 
 import java.math.BigInteger;
 import java.util.HashMap;
@@ -57,19 +58,23 @@ public class StorageProtocol extends GenericProtocol {
     }
 
     private void uponStoreRequest(StoreRequest request, short sourceProto) {
-        LookupRequest lookupRequest = new LookupRequest(BigInteger.valueOf(request.getId()));
+        LookupRequest lookupRequest = new LookupRequest(
+                HashGenerator.generateHash(request.getName())
+        );
         sendRequest(lookupRequest, dhtProtoId);
         pendingRequests.put(request.getRequestId(), RequestType.STORE_REQUEST);
     }
 
     private void uponRetrieveRequest(RetrieveRequest request, short sourceProto) {
-        LookupRequest lookupRequest = new LookupRequest(BigInteger.valueOf(request.getId()));
+        LookupRequest lookupRequest = new LookupRequest(
+                HashGenerator.generateHash(request.getName())
+        );
         sendRequest(lookupRequest, dhtProtoId);
         pendingRequests.put(request.getRequestId(), RequestType.RETRIEVE_REQUEST);
     }
 
     private void uponLookupResult(LookupResult notification, short sourceProto) {
-        switch(pendingRequests.get(notification.getRequestId())){
+        switch(pendingRequests.remove(notification.getRequestId())){
             case STORE_REQUEST:
                 // TODO
                 break;
