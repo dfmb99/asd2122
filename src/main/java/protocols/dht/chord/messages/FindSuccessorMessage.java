@@ -1,4 +1,4 @@
-package protocols.dht.messages;
+package protocols.dht.chord.messages;
 
 import io.netty.buffer.ByteBuf;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
@@ -6,17 +6,14 @@ import pt.unl.fct.di.novasys.network.ISerializer;
 import pt.unl.fct.di.novasys.network.data.Host;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.math.BigInteger;
-import java.util.HashSet;
-import java.util.Set;
 
 public class FindSuccessorMessage extends ProtoMessage {
 
-    public final static short MSG_ID = 103;
+    public final static short MSG_ID = 105;
 
     private final BigInteger key;
-    private final Host host;    // process who issued the LookUp request
+    private final Host host; // process who issued the LookUp request
 
     public FindSuccessorMessage(BigInteger key, Host host) {
         super(MSG_ID);
@@ -34,7 +31,7 @@ public class FindSuccessorMessage extends ProtoMessage {
 
     @Override
     public String toString() {
-        return "GetSuccessorMessage{" +
+        return "FindSuccessorMessage{" +
                 "key=" + key +
                 "host=" + host +
                 '}';
@@ -43,16 +40,16 @@ public class FindSuccessorMessage extends ProtoMessage {
     public static ISerializer<FindSuccessorMessage> serializer = new ISerializer<>() {
         @Override
         public void serialize(FindSuccessorMessage sampleMessage, ByteBuf out) throws IOException {
-            Host.serializer.serialize(sampleMessage.host, out);
             byte[] keyBytes = sampleMessage.key.toByteArray();
             out.writeInt(keyBytes.length);
             out.writeBytes(keyBytes);
+            Host.serializer.serialize(sampleMessage.host, out);
         }
 
         @Override
         public FindSuccessorMessage deserialize(ByteBuf in) throws IOException {
-            Host host = Host.serializer.deserialize(in);
             BigInteger key = new BigInteger(in.readBytes(in.readInt()).array());
+            Host host = Host.serializer.deserialize(in);
             return new FindSuccessorMessage(key, host);
         }
     };
