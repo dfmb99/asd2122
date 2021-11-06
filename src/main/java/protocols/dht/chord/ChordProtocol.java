@@ -1,11 +1,13 @@
 package protocols.dht.chord;
 
+import notifications.ChannelCreated;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import protocols.BaseProtocol;
-import protocols.dht.chord.messages.*;
+import protocols.dht.chord.messages.overlay.*;
+import protocols.dht.chord.messages.search.FindSuccessorMessage;
+import protocols.dht.chord.messages.search.FindSuccessorReplyMessage;
 import protocols.dht.chord.types.Node;
-import protocols.dht.notifications.ChannelCreated;
 import protocols.dht.chord.timers.FixFingersTimer;
 import protocols.dht.chord.timers.InfoTimer;
 import protocols.dht.chord.timers.KeepAliveTimer;
@@ -28,7 +30,7 @@ public class ChordProtocol extends BaseProtocol {
 
     private static final Logger logger = LogManager.getLogger(ChordProtocol.class);
 
-    public static final short PROTOCOL_ID = 201;
+    public static final short PROTOCOL_ID = 20;
     public static final String PROTOCOL_NAME = "ChordProtocol";
 
     private final int m;
@@ -59,7 +61,7 @@ public class ChordProtocol extends BaseProtocol {
         registerChannelEvents();
 
         /*--------------------- Register Request Handlers ----------------------------- */
-        registerRequestHandler(LookupRequest.REQUEST_ID, this::uponLookupRequest);
+        registerRequestHandler(LookupRequest.REQUEST_TYPE_ID, this::uponLookupRequest);
 
         /*---------------------- Register Message Handlers -------------------------- */
         registerMessageHandler(channelId, KeepAliveMessage.MSG_ID, this::UponKeepAliveMessage, this::uponKeepAliveMessageFail);
@@ -132,7 +134,6 @@ public class ChordProtocol extends BaseProtocol {
         if (metricsInterval > 0)
             setupPeriodicTimer(new InfoTimer(), metricsInterval, metricsInterval);
 
-        //Inform the storage protocol about the channel we created in the constructor
         triggerNotification(new ChannelCreated(channelId));
     }
 
@@ -251,11 +252,11 @@ public class ChordProtocol extends BaseProtocol {
         BigInteger fullKey = HashGenerator.generateHash(request.getName());
         BigInteger key = fullKey.shiftRight(fullKey.bitLength() - m);
         if(ring.InBounds(key, self.getId(), getSuccessor().getId())){
-            sendReply(new LookupReply(request.getUid(), getSuccessor()), StorageProtocol.PROTOCOL_ID);
+            sendReply(new LookupReply(request.getRequestId(), getSuccessor()), StorageProtocol.PROTOCOL_ID);
         }
         else{
             Node closestPrecedingNode = closestPrecedingNode(key);
-            dispatchMessage(new FindSuccessorMessage(request.getUid(), key, self.getHost()), closestPrecedingNode.getHost());
+            dispatchMessage(new FindSuccessorMessage(request.getRequestId(), key, self.getHost()), closestPrecedingNode.getHost());
         }
     }
 

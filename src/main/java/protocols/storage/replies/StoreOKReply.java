@@ -6,21 +6,21 @@ import pt.unl.fct.di.novasys.babel.generic.ProtoReply;
 
 public class StoreOKReply extends ProtoReply {
 
-	final public static short REPLY_ID = 203;
+	final public static short REPLY_TYPE_ID = 402;
+
+	private final UUID requestId;
+	private final String name;
 	
-	private String name;
-	private UUID uid;
-	
-	public StoreOKReply(String name, UUID uid) {
-		super(StoreOKReply.REPLY_ID);
+	public StoreOKReply(UUID requestId, String name) {
+		super(StoreOKReply.REPLY_TYPE_ID);
+		this.requestId = requestId;
 		this.name = name;
-		this.uid = uid;
 	}
-	
-	public UUID getReplyUID() {
-		return this.uid;
+
+	public UUID getRequestId() {
+		return requestId;
 	}
-	
+
 	public String getName() {
 		return this.name;
 	}

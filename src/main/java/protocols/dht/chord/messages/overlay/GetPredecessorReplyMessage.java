@@ -1,4 +1,4 @@
-package protocols.dht.chord.messages;
+package protocols.dht.chord.messages.overlay;
 
 import io.netty.buffer.ByteBuf;
 import protocols.dht.chord.types.Node;
@@ -9,7 +9,7 @@ import java.io.IOException;
 
 public class GetPredecessorReplyMessage extends ProtoMessage {
 
-    public final static short MSG_ID = 104;
+    public final static short MSG_ID = 201;
 
     private final Node predecessor;
 

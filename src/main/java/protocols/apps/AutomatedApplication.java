@@ -9,7 +9,7 @@ import java.util.Random;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import channel.notifications.ChannelCreated;
+import notifications.ChannelCreated;
 import protocols.apps.timers.ExitTimer;
 import protocols.apps.timers.RequestTimer;
 import protocols.apps.timers.StartTimer;
@@ -29,7 +29,7 @@ public class AutomatedApplication extends GenericProtocol {
 
 	//Protocol information, to register in babel
 	public static final String PROTO_NAME = "AutomatedApplication";
-	public static final short PROTO_ID = 300;
+	public static final short PROTO_ID = 10;
 
 	private final short storageProtoId;
 
@@ -86,9 +86,9 @@ public class AutomatedApplication extends GenericProtocol {
 		registerTimerHandler(StartTimer.TIMER_ID, this::uponStartTimer);
 		registerTimerHandler(StopTimer.TIMER_ID, this::uponStopTimer);
 		registerTimerHandler(ExitTimer.TIMER_ID, this::uponExitTimer);
-		registerReplyHandler(StoreOKReply.REPLY_ID, this::uponStoreOk);
-		registerReplyHandler(RetrieveOKReply.REPLY_ID, this::uponRetrieveOK);
-		registerReplyHandler(RetrieveFailedReply.REPLY_ID, this::uponRetrieveFailed);
+		registerReplyHandler(StoreOKReply.REPLY_TYPE_ID, this::uponStoreOk);
+		registerReplyHandler(RetrieveOKReply.REPLY_TYPE_ID, this::uponRetrieveOK);
+		registerReplyHandler(RetrieveFailedReply.REPLY_TYPE_ID, this::uponRetrieveFailed);
 
 		//Register notifications
 		subscribeNotification(ChannelCreated.NOTIFICATION_ID, this::uponChannelCreated);
@@ -96,8 +96,8 @@ public class AutomatedApplication extends GenericProtocol {
 		//Variables related with workload generation
 		this.totalProcesses = Integer.parseInt(properties.getProperty("total_processes"));
 		this.localIndex = Integer.parseInt(properties.getProperty("my_index"));
-		this.myKeys = new ArrayList<String>(this.numberContents);
-		this.otherKeys = new ArrayList<String>(this.numberContents * (this.totalProcesses-1));
+		this.myKeys = new ArrayList<>(this.numberContents);
+		this.otherKeys = new ArrayList<>(this.numberContents * (this.totalProcesses-1));
 		this.storedKeys = 0;
 
 	}
@@ -116,9 +116,9 @@ public class AutomatedApplication extends GenericProtocol {
 		//Generate Keys deterministically;
 		logger.info("Generating Keys");
 		for(int i = 1; i <= this.totalProcesses; i++) {
-			r = new Random((long) i);
+			r = new Random(i);
 			for(int j = 0; j < numberContents; j++) {
-				String key = "content_" + i + "_" + new BigInteger(256, 0, r).toString();
+				String key = "content_" + i + "_" + new BigInteger(256, 0, r);
 				if(i == this.localIndex) {
 					this.myKeys.add(key);
 				} else {
@@ -127,16 +127,16 @@ public class AutomatedApplication extends GenericProtocol {
 			}
 		}	
 		//reset Random
-		r = new Random((long) this.localIndex);
+		r = new Random(this.localIndex);
 		//Wait prepareTime seconds before starting
 		logger.info("Waiting...");
-		setupTimer(new StartTimer(), prepareTime * 1000);
+		setupTimer(new StartTimer(), prepareTime * 1000L);
 	}
 
 	private void uponStartTimer(StartTimer startTimer, long timerId) {
 		logger.info("Starting");
 		byte[] content = new byte[this.payloadSize];
-		new Random(this.localIndex*1000+this.storedKeys).nextBytes(content);
+		new Random(this.localIndex* 1000L +this.storedKeys).nextBytes(content);
 		StoreRequest request = new StoreRequest(this.myKeys.get(this.storedKeys), content);
 		sendRequest(request, storageProtoId);
 		logger.info("{}: Storing content with name: {} with size {} bytes (requestID {})", self, request.getName(), content.length, request.getRequestId());
@@ -156,15 +156,15 @@ public class AutomatedApplication extends GenericProtocol {
 	private void uponStoreOk(StoreOKReply reply, short sourceProto) {
 		this.storedKeys++;
 		this.storeRequestsCompleted++;
-		logger.info("{}: Store Successful for content with name: {} (replyID {})", self, reply.getName(), reply.getReplyUID());
+		logger.info("{}: Store Successful for content with name: {} (requestId {})", self, reply.getName(), reply.getRequestId());
 		if(this.storedKeys >= this.numberContents) {
 			//Start requests periodically
 			requestTimer = setupPeriodicTimer(new RequestTimer(), 0, requestInterval);
 			//And setup the stop timer
-			setupTimer(new StopTimer(), runTime * 1000);
+			setupTimer(new StopTimer(), runTime * 1000L);
 		} else {
 			byte[] content = new byte[this.payloadSize];
-			new Random(this.localIndex*1000+this.storedKeys).nextBytes(content);
+			new Random(this.localIndex* 1000L +this.storedKeys).nextBytes(content);
 			StoreRequest request = new StoreRequest(this.myKeys.get(this.storedKeys), content);
 			sendRequest(request, storageProtoId);
 			logger.info("{}: Storing content with name: {} with size {} bytes (requestID {})", self, request.getName(), content.length, request.getRequestId());
@@ -173,19 +173,19 @@ public class AutomatedApplication extends GenericProtocol {
 	}
 	
 	private void uponRetrieveOK(RetrieveOKReply reply, short sourceProto) {
-		logger.info("{}: Retieve successful for content with name: {} with size {} bytes (replyID {})", self, reply.getName(), reply.getContent().length, reply.getReplyUID());
+		logger.info("{}: Retieve successful for content with name: {} with size {} bytes (requestId {})", self, reply.getName(), reply.getContent().length, reply.getRequestId());
 		this.retrieveRequestsSuccessful++;
 	}
 	
 	private void uponRetrieveFailed(RetrieveFailedReply reply, short sourceProto) {
-		logger.info("{}: Retieve failed for content with name: {} bytes (replyID {})", self, reply.getName(), reply.getReplyUID());
+		logger.info("{}: Retieve failed for content with name: {} bytes (requestId {})", self, reply.getName(), reply.getRequestId());
 		this.retrieveRequestsFailed++;
 	}
 
 	private void uponStopTimer(StopTimer stopTimer, long timerId) {
 		logger.info("Stopping broadcasts");
 		this.cancelTimer(requestTimer);
-		setupTimer(new ExitTimer(), cooldownTime * 1000);
+		setupTimer(new ExitTimer(), cooldownTime * 1000L);
 	}
 	private void uponExitTimer(ExitTimer exitTimer, long timerId) {
 		logger.info("Exiting...");

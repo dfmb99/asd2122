@@ -1,4 +1,4 @@
-package protocols.dht.chord.messages;
+package protocols.dht.chord.messages.overlay;
 
 import io.netty.buffer.ByteBuf;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
@@ -8,7 +8,7 @@ import java.io.IOException;
 
 public class NotifySuccessorMessage extends ProtoMessage {
 
-    public final static short MSG_ID = 108;
+    public final static short MSG_ID = 205;
 
     public NotifySuccessorMessage() {
         super(MSG_ID);
@@ -21,11 +21,11 @@ public class NotifySuccessorMessage extends ProtoMessage {
 
     public static ISerializer<NotifySuccessorMessage> serializer = new ISerializer<>() {
         @Override
-        public void serialize(NotifySuccessorMessage sampleMessage, ByteBuf out) throws IOException {
+        public void serialize(NotifySuccessorMessage sampleMessage, ByteBuf out) {
         }
 
         @Override
-        public NotifySuccessorMessage deserialize(ByteBuf in) throws IOException {
+        public NotifySuccessorMessage deserialize(ByteBuf in) {
             return new NotifySuccessorMessage();
         }
     };

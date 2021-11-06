@@ -6,21 +6,21 @@ import pt.unl.fct.di.novasys.babel.generic.ProtoReply;
 
 public class RetrieveFailedReply extends ProtoReply {
 
-	final public static short REPLY_ID = 205;
+	final public static short REPLY_TYPE_ID = 400;
+
+	private final UUID requestId;
+	private final String name;
 	
-	private String name;
-	private UUID uid;
-	
-	public RetrieveFailedReply(String name, UUID uid) {
-		super(RetrieveFailedReply.REPLY_ID);
+	public RetrieveFailedReply(UUID requestId, String name) {
+		super(RetrieveFailedReply.REPLY_TYPE_ID);
+		this.requestId = requestId;
 		this.name = name;
-		this.uid = uid;
 	}
-	
-	public UUID getReplyUID() {
-		return this.uid;
+
+	public UUID getRequestId() {
+		return requestId;
 	}
-	
+
 	public String getName() {
 		return this.name;
 	}

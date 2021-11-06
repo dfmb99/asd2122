@@ -10,6 +10,7 @@ import pt.unl.fct.di.novasys.network.data.Host;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public abstract class BaseProtocol extends GenericProtocol {
 
@@ -39,9 +40,9 @@ public abstract class BaseProtocol extends GenericProtocol {
             channelId = createChannel(TCPChannel.NAME, channelProps);
         }
 
-        openConnections = new HashSet<>();
-        pendingConnections = new HashSet<>();
-        pendingMessages = new HashMap<>();
+        openConnections = ConcurrentHashMap.newKeySet();
+        pendingConnections = ConcurrentHashMap.newKeySet();
+        pendingMessages = new ConcurrentHashMap<>();
     }
 
     @Override

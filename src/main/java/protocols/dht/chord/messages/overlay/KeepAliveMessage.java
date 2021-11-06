@@ -1,4 +1,4 @@
-package protocols.dht.chord.messages;
+package protocols.dht.chord.messages.overlay;
 
 import io.netty.buffer.ByteBuf;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
@@ -8,7 +8,7 @@ import java.io.IOException;
 
 public class KeepAliveMessage extends ProtoMessage {
 
-    public final static short MSG_ID = 107;
+    public final static short MSG_ID = 204;
 
     public KeepAliveMessage() {
         super(MSG_ID);
@@ -21,11 +21,10 @@ public class KeepAliveMessage extends ProtoMessage {
 
     public static ISerializer<KeepAliveMessage> serializer = new ISerializer<>() {
         @Override
-        public void serialize(KeepAliveMessage sampleMessage, ByteBuf out) throws IOException {
-        }
+        public void serialize(KeepAliveMessage sampleMessage, ByteBuf out) {}
 
         @Override
-        public KeepAliveMessage deserialize(ByteBuf in) throws IOException {
+        public KeepAliveMessage deserialize(ByteBuf in) {
             return new KeepAliveMessage();
         }
     };

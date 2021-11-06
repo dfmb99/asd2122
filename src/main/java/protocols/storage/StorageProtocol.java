@@ -1,15 +1,19 @@
 package protocols.storage;
 
+import notifications.ChannelCreated;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import protocols.BaseProtocol;
-import protocols.dht.notifications.ChannelCreated;
+import protocols.apps.AutomatedApplication;
 import protocols.dht.replies.LookupReply;
 import protocols.dht.requests.LookupRequest;
 import protocols.storage.messages.RetrieveContentMessage;
 import protocols.storage.messages.RetrieveContentReplyMessage;
 import protocols.storage.messages.StoreContentMessage;
+import protocols.storage.messages.StoreContentReplyMessage;
+import protocols.storage.replies.RetrieveFailedReply;
 import protocols.storage.replies.RetrieveOKReply;
+import protocols.storage.replies.StoreOKReply;
 import protocols.storage.requests.RetrieveRequest;
 import protocols.storage.requests.StoreRequest;
 import pt.unl.fct.di.novasys.babel.exceptions.HandlerRegistrationException;
@@ -19,17 +23,20 @@ import pt.unl.fct.di.novasys.network.data.Host;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class StorageProtocol extends BaseProtocol {
 
     private static final Logger logger = LogManager.getLogger(StorageProtocol.class);
 
     public static final String PROTOCOL_NAME = "StorageProtocol";
-    public static final short PROTOCOL_ID = 200;
+    public static final short PROTOCOL_ID = 400;
 
     private final short dhtProtoId;
 
     private Map<UUID, ProtoRequest> pendingRequests;
+
+    private final IPersistentStorage storage;
 
     public boolean ready;
 
@@ -37,15 +44,17 @@ public class StorageProtocol extends BaseProtocol {
         super(props, self, PROTOCOL_NAME, PROTOCOL_ID, logger, false);
         this.dhtProtoId = dhtProtoId;
 
-        this.pendingRequests = new HashMap<>();
+        this.pendingRequests = new ConcurrentHashMap<>();
+
+        this.storage = new VolatileStorage();
 
         /*--------------------- Register Request Handlers ----------------------------- */
-        registerRequestHandler(StoreRequest.REQUEST_ID, this::uponStoreRequest);
-        registerRequestHandler(RetrieveRequest.REQUEST_ID, this::uponRetrieveRequest);
+        registerRequestHandler(StoreRequest.REQUEST_TYPE_ID, this::uponStoreRequest);
+        registerRequestHandler(RetrieveRequest.REQUEST_TYPE_ID, this::uponRetrieveRequest);
 
         /*--------------------- Register Reply Handlers ----------------------------- */
-        registerReplyHandler(LookupReply.REPLY_ID, this::uponLookupReply);
-
+        registerReplyHandler(LookupReply.REPLY_TYPE_ID, this::uponLookupReply);
+        
         /*--------------------- Register Notification Handlers ----------------------------- */
         subscribeNotification(ChannelCreated.NOTIFICATION_ID, this::uponChannelCreated);
 
@@ -55,12 +64,15 @@ public class StorageProtocol extends BaseProtocol {
     private void uponChannelCreated(ChannelCreated notification, short sourceProto) {
         this.channelId = notification.getChannelId();
 
-        /*---------------------- Register Message Handlers -------------------------- */
         try {
-            registerMessageHandler(channelId, StoreContentMessage.MSG_ID, this::uponStoreContentMessage, this::uponMessageFail);
+            /*---------------------- Register Channel Events ------------------------------ */
+            registerChannelEvents();
+            /*---------------------- Register Message Handlers -------------------------- */
             registerMessageHandler(channelId, RetrieveContentMessage.MSG_ID, this::uponRetrieveContentMessage, this::uponMessageFail);
             registerMessageHandler(channelId, RetrieveContentReplyMessage.MSG_ID, this::uponRetrieveContentReplyMessage, this::uponMessageFail);
-        } catch (HandlerRegistrationException e) {
+            registerMessageHandler(channelId, StoreContentMessage.MSG_ID, this::uponStoreContentMessage, this::uponMessageFail);
+            registerMessageHandler(channelId, StoreContentReplyMessage.MSG_ID, this::uponStoreContentReplyMessage, this::uponMessageFail);
+        } catch (Exception e) {
             logger.error("Error registering message handler: " + e.getMessage());
             e.printStackTrace();
             System.exit(1);
@@ -81,7 +93,7 @@ public class StorageProtocol extends BaseProtocol {
 
     private void uponStoreRequest(StoreRequest request, short sourceProto) {
         LookupRequest lookupRequest = new LookupRequest(
-                request.getName(), request.getRequestId()
+                request.getRequestId(), request.getName()
         );
         sendRequest(lookupRequest, dhtProtoId);
         pendingRequests.put(request.getRequestId(), request);
@@ -89,7 +101,7 @@ public class StorageProtocol extends BaseProtocol {
 
     private void uponRetrieveRequest(RetrieveRequest request, short sourceProto) {
         LookupRequest lookupRequest = new LookupRequest(
-                request.getName(), request.getRequestId()
+                request.getRequestId(), request.getName()
         );
         sendRequest(lookupRequest, dhtProtoId);
         pendingRequests.put(request.getRequestId(), request);
@@ -102,11 +114,24 @@ public class StorageProtocol extends BaseProtocol {
 
         if(request instanceof StoreRequest) {
             StoreRequest storeRequest = (StoreRequest) request;
-            dispatchMessage(new StoreContentMessage(storeRequest.getName(), storeRequest.getContent()), result.getNode().getHost());
+            if(result.getNode().getHost().equals(self)) {
+                storage.put(storeRequest.getName(), storeRequest.getContent());
+                sendReply(new StoreOKReply(storeRequest.getRequestId(), storeRequest.getName()), AutomatedApplication.PROTO_ID);
+            }
+            else dispatchMessage(new StoreContentMessage(result.getRequestId(), storeRequest.getName(), storeRequest.getContent()), result.getNode().getHost());
         }
+
+
         else if(request instanceof RetrieveRequest) {
             RetrieveRequest retrieveRequest = (RetrieveRequest) request;
-            dispatchMessage(new RetrieveContentMessage(retrieveRequest.getName()), result.getNode().getHost());
+            if(result.getNode().getHost().equals(self)) {
+                byte[] content = storage.get(retrieveRequest.getName());
+                if(content != null)
+                    sendReply(new RetrieveOKReply(retrieveRequest.getRequestId(), retrieveRequest.getName(), content), AutomatedApplication.PROTO_ID);
+                else
+                    sendReply(new RetrieveFailedReply(retrieveRequest.getRequestId(), retrieveRequest.getName()), AutomatedApplication.PROTO_ID);
+            }
+            else dispatchMessage(new RetrieveContentMessage(result.getRequestId(), retrieveRequest.getName()), result.getNode().getHost());
         }
     }
 
@@ -114,16 +139,27 @@ public class StorageProtocol extends BaseProtocol {
 
     private void uponStoreContentMessage(StoreContentMessage msg, Host from, short sourceProto, int channelId) {
         logger.info("Received {} from {}", msg, from);
+        storage.put(msg.getName(), msg.getContent());
+        dispatchMessage(new StoreContentReplyMessage(msg.getRequestId(), msg.getName()), from);
+    }
+
+    private void uponStoreContentReplyMessage(StoreContentReplyMessage msg, Host from, short sourceProto, int channelId) {
+        logger.info("Received {} from {}", msg, from);
+        sendReply(new StoreOKReply(msg.getRequestId(), msg.getName()), AutomatedApplication.PROTO_ID);
     }
 
     private void uponRetrieveContentMessage(RetrieveContentMessage msg, Host from, short sourceProto, int channelId) {
         logger.info("Received {} from {}", msg, from);
+        byte[] content = storage.get(msg.getName());
+        dispatchMessage(new RetrieveContentReplyMessage(msg.getRequestId(), msg.getName(), content), from);
     }
 
     private void uponRetrieveContentReplyMessage(RetrieveContentReplyMessage msg, Host from, short sourceProto, int channelId) {
         logger.info("Received {} from {}", msg, from);
         if(msg.getContent() != null)
-            sendReply(new RetrieveOKReply(), );
+            sendReply(new RetrieveOKReply(msg.getRequestId(), msg.getName(), msg.getContent()), AutomatedApplication.PROTO_ID);
+        else
+            sendReply(new RetrieveFailedReply(msg.getRequestId(), msg.getName()), AutomatedApplication.PROTO_ID);
     }
 
     /*---------------------------------------- Debug ---------------------------------- */

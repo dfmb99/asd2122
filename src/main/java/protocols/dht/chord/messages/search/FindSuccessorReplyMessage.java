@@ -1,4 +1,4 @@
-package protocols.dht.chord.messages;
+package protocols.dht.chord.messages.search;
 
 import io.netty.buffer.ByteBuf;
 import protocols.dht.chord.types.Node;
@@ -11,7 +11,7 @@ import java.util.UUID;
 
 public class FindSuccessorReplyMessage extends ProtoMessage {
 
-    public final static short MSG_ID = 102;
+    public final static short MSG_ID = 209;
 
     private final UUID requestId;
     private final BigInteger key;

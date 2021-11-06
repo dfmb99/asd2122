@@ -6,19 +6,19 @@ import pt.unl.fct.di.novasys.babel.generic.ProtoRequest;
 
 public class RetrieveRequest extends ProtoRequest {
 
-	final public static short REQUEST_ID = 202;
-	
-	private String name;
-	private UUID uid;
+	final public static short REQUEST_TYPE_ID = 400;
+
+	private final UUID requestId;
+	private final String name;
 	
 	public RetrieveRequest(String name) {
-		super(RetrieveRequest.REQUEST_ID);
+		super(RetrieveRequest.REQUEST_TYPE_ID);
+		this.requestId = UUID.randomUUID();
 		this.name = name;
-		this.uid = UUID.randomUUID();
 	}
 	
 	public UUID getRequestId() {
-		return this.uid;
+		return this.requestId;
 	}
 	
 	public String getName() {

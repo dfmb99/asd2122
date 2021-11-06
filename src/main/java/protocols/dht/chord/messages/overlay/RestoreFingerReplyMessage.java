@@ -1,17 +1,15 @@
-package protocols.dht.chord.messages;
+package protocols.dht.chord.messages.overlay;
 
 import io.netty.buffer.ByteBuf;
 import protocols.dht.chord.types.Node;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.network.ISerializer;
-import pt.unl.fct.di.novasys.network.data.Host;
 
 import java.io.IOException;
-import java.math.BigInteger;
 
 public class RestoreFingerReplyMessage extends ProtoMessage {
 
-    public final static short MSG_ID = 110;
+    public final static short MSG_ID = 207;
 
     private final int finger;
     private final Node node;

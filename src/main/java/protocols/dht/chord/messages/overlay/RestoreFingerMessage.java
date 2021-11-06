@@ -1,4 +1,4 @@
-package protocols.dht.chord.messages;
+package protocols.dht.chord.messages.overlay;
 
 import io.netty.buffer.ByteBuf;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
@@ -10,7 +10,7 @@ import java.math.BigInteger;
 
 public class RestoreFingerMessage extends ProtoMessage {
 
-    public final static short MSG_ID = 109;
+    public final static short MSG_ID = 206;
 
     private final int finger;
     private final BigInteger key;

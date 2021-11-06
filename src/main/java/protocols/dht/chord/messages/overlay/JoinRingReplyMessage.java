@@ -1,16 +1,15 @@
-package protocols.dht.chord.messages;
+package protocols.dht.chord.messages.overlay;
 
 import io.netty.buffer.ByteBuf;
 import protocols.dht.chord.types.Node;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.network.ISerializer;
-import pt.unl.fct.di.novasys.network.data.Host;
 
 import java.io.IOException;
 
 public class JoinRingReplyMessage extends ProtoMessage {
 
-    public final static short MSG_ID = 106;
+    public final static short MSG_ID = 203;
 
     private final Node successor;
 
