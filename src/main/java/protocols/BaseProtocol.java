@@ -124,19 +124,11 @@ public abstract class BaseProtocol extends GenericProtocol {
     protected void uponInConnectionUp(InConnectionUp event, int channelId) {
         Host peer = event.getNode();
         logger.info("In Connection from {} to {}  is up", peer, self);
-        openConnections.add(peer);
-        pendingConnections.remove(peer);
-
-        Optional.ofNullable(pendingMessages.get(peer)).ifPresent(l -> l.forEach(m -> sendMessage(m, peer)));
-
-        pendingMessages.remove(peer);
     }
 
 
     protected void uponInConnectionDown(InConnectionDown event, int channelId) {
         Host peer = event.getNode();
         logger.info("In Connection from {} to {} is down, cause: {}", peer, self, event.getCause());
-        openConnections.remove(peer);
-        pendingMessages.remove(peer);
     }
 }

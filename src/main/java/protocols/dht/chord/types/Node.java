@@ -2,9 +2,9 @@ package protocols.dht.chord.types;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
+import protocols.dht.chord.KeyGenerator;
 import pt.unl.fct.di.novasys.network.ISerializer;
 import pt.unl.fct.di.novasys.network.data.Host;
-import utils.HashGenerator;
 
 import java.io.IOException;
 import java.math.BigInteger;
@@ -16,12 +16,11 @@ public class Node {
     private final Host host;
 
     public Node(Host host, int m) {
-        BigInteger hash = HashGenerator.generateHash(host.toString()).abs();
-        this.id = hash.shiftRight(hash.bitLength() - m);
+        this.id = KeyGenerator.gen(host.toString(), m);
         this.host = host;
     }
 
-    public Node(BigInteger id, Host host) {
+    private Node(BigInteger id, Host host) {
         this.id = id;
         this.host = host;
     }
@@ -62,11 +61,11 @@ public class Node {
         if (this == o) return true;
         if (!(o instanceof Node)) return false;
         Node node = (Node) o;
-        return id.equals(node.id);
+        return host.equals(node.host);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id);
+        return Objects.hash(host);
     }
 }

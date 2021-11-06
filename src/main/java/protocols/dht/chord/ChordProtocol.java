@@ -18,7 +18,6 @@ import protocols.storage.StorageProtocol;
 import pt.unl.fct.di.novasys.babel.exceptions.HandlerRegistrationException;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.network.data.Host;
-import utils.HashGenerator;
 import utils.Ring;
 
 import java.io.IOException;
@@ -271,8 +270,7 @@ public class ChordProtocol extends BaseProtocol {
 
     public void uponLookupRequest(LookupRequest request, short sourceProto) {
         logger.info("Lookup request for {}", request.getName());
-        BigInteger fullKey = HashGenerator.generateHash(request.getName());
-        BigInteger key = fullKey.shiftRight(fullKey.bitLength() - m);
+        BigInteger key = KeyGenerator.gen(request.getName(), m);
         if(ring.InBounds(key, self.getId(), getSuccessor().getId())){
             sendReply(new LookupReply(request.getRequestId(), getSuccessor()), StorageProtocol.PROTOCOL_ID);
         }
