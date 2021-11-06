@@ -24,7 +24,7 @@ public class JoinRingReplyMessage extends ProtoMessage {
 
     @Override
     public String toString() {
-        return "FindSuccessorReplyMessage{" +
+        return "JoinRingReplyMessage{" +
                 "node=" + node.toString() +
                 '}';
     }

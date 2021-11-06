@@ -30,7 +30,7 @@ public class RestoreFingerReplyMessage extends ProtoMessage {
 
     @Override
     public String toString() {
-        return "RestoreFingerMessage{" +
+        return "RestoreFingerReplyMessage{" +
                 "finger=" + finger +
                 "node=" + node.toString() +
                 '}';

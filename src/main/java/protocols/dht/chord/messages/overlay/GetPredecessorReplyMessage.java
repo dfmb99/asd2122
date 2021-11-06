@@ -24,7 +24,7 @@ public class GetPredecessorReplyMessage extends ProtoMessage {
 
     @Override
     public String toString() {
-        return "FindSuccessorReplyMessage{" +
+        return "GetPredecessorReplyMessage{" +
                 "predecessor=" + predecessor.toString() +
                 '}';
     }

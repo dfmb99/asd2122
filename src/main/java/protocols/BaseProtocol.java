@@ -60,6 +60,7 @@ public abstract class BaseProtocol extends GenericProtocol {
         if(!openConnections.contains(peer) && !pendingConnections.contains(peer)) {
             openConnection(peer);
             pendingConnections.add(peer);
+            pendingMessages.put(peer, Collections.synchronizedList(new LinkedList<>()));
         }
     }
 
@@ -76,10 +77,13 @@ public abstract class BaseProtocol extends GenericProtocol {
     }
 
     protected void dispatchMessage(ProtoMessage message, Host peer) {
-        if(peer.equals(self))
+        if(peer.equals(self)) {
             logger.error("Sending message to my self {} message: {}", self, message);
+            System.exit(-1);
+        }
 
         if(openConnections.contains(peer)) {
+            logger.info("Sent message {} from {} to {} ", message, self, peer);
             sendMessage(message, peer);
         }
         else if(pendingConnections.contains(peer)) {
@@ -98,7 +102,10 @@ public abstract class BaseProtocol extends GenericProtocol {
         openConnections.add(peer);
         pendingConnections.remove(peer);
 
-        Optional.ofNullable(pendingMessages.get(peer)).ifPresent(l -> l.forEach(m -> sendMessage(m, peer)));
+        Optional.ofNullable(pendingMessages.get(peer)).ifPresent(l -> l.forEach(m -> {
+            logger.info("Sent message {} from {} to {} ", m, self, peer);
+            sendMessage(m, peer);
+        }));
 
         pendingMessages.remove(peer);
     }

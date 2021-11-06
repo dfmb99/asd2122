@@ -75,13 +75,13 @@ public class ChordProtocol extends BaseProtocol {
         registerMessageHandler(channelId, JoinRingMessage.MSG_ID, this::uponJoinRingMessage, this::uponMessageFail);
         registerMessageHandler(channelId, JoinRingReplyMessage.MSG_ID, this::uponJoinRingReplyMessage, this::uponMessageFail);
 
-        registerMessageHandler(channelId, GetPredecessorMessage.MSG_ID, this::UponGetPredecessorMessage, this::uponMessageFail);
-        registerMessageHandler(channelId, GetPredecessorReplyMessage.MSG_ID, this::UponGetPredecessorReplyMessage, this::uponMessageFail);
+        registerMessageHandler(channelId, GetPredecessorMessage.MSG_ID, this::uponGetPredecessorMessage, this::uponMessageFail);
+        registerMessageHandler(channelId, GetPredecessorReplyMessage.MSG_ID, this::uponGetPredecessorReplyMessage, this::uponMessageFail);
 
-        registerMessageHandler(channelId, NotifySuccessorMessage.MSG_ID, this::UponNotifySuccessorMessage, this::uponMessageFail);
+        registerMessageHandler(channelId, NotifySuccessorMessage.MSG_ID, this::uponNotifySuccessorMessage, this::uponMessageFail);
 
-        registerMessageHandler(channelId, RestoreFingerMessage.MSG_ID, this::UponRestoreFingerMessage, this::uponMessageFail);
-        registerMessageHandler(channelId, RestoreFingerReplyMessage.MSG_ID, this::UponRestoreFingerReplyMessage, this::uponMessageFail);
+        registerMessageHandler(channelId, RestoreFingerMessage.MSG_ID, this::uponRestoreFingerMessage, this::uponMessageFail);
+        registerMessageHandler(channelId, RestoreFingerReplyMessage.MSG_ID, this::uponRestoreFingerReplyMessage, this::uponMessageFail);
 
         registerMessageHandler(channelId, FindSuccessorMessage.MSG_ID, this::UponFindSuccessorMessage, this::uponMessageFail);
         registerMessageHandler(channelId, FindSuccessorReplyMessage.MSG_ID, this::UponFindSuccessorReplyMessage, this::uponMessageFail);
@@ -104,23 +104,52 @@ public class ChordProtocol extends BaseProtocol {
         registerMessageSerializer(channelId, FindSuccessorReplyMessage.MSG_ID, FindSuccessorReplyMessage.serializer);
     }
 
-    private void setSuccessor(Node successor) {
-        this.fingers[0] = successor;
-        mendConnection(successor.getHost());
+    private int connectionInUseBy(Host peer) {
+        if(peer.equals(self.getHost()))
+            return 0;
+
+        int uses = 0;
+
+        if(predecessor != null && predecessor.getHost().equals(peer))
+            uses++;
+
+        for (Node finger : fingers)
+            if (finger != null && finger.getHost().equals(peer))
+                 uses++;
+
+        return uses;
     }
 
     private Node getSuccessor() {
         return fingers[0];
     }
 
+    private void setSuccessor(Node successor) {
+        setFinger(0, successor);
+    }
+
     private void setPredecessor(Node predecessor) {
+        if(predecessor.equals(this.predecessor)) return;
+
+        if(this.predecessor != null && connectionInUseBy(this.predecessor.getHost()) == 1)
+            breakConnection(this.predecessor.getHost());
+
         this.predecessor = predecessor;
-        mendConnection(predecessor.getHost());
+
+        if(!predecessor.equals(self))
+            mendConnection(predecessor.getHost());
     }
 
     private void setFinger(int i, Node finger) {
+        if(finger.equals(this.fingers[i])) return;
+
+        if(this.fingers[i] != null && connectionInUseBy(this.fingers[i].getHost()) == 1)
+            breakConnection(this.fingers[i].getHost());
+
         this.fingers[i] = finger;
-        mendConnection(finger.getHost());
+
+        if(!finger.equals(self))
+            mendConnection(finger.getHost());
     }
 
     @Override
@@ -197,19 +226,20 @@ public class ChordProtocol extends BaseProtocol {
         dispatchMessageButNotToSelf(new GetPredecessorMessage(), getSuccessor().getHost());
     }
 
-    private void UponGetPredecessorMessage(GetPredecessorMessage msg, Host from, short sourceProto, int channelId) {
+    private void uponGetPredecessorMessage(GetPredecessorMessage msg, Host from, short sourceProto, int channelId) {
         logger.info("Received {} from {}", msg, from);
-        dispatchMessage(new GetPredecessorReplyMessage(predecessor), from);
+        if(!predecessor.getHost().equals(from))
+            dispatchMessage(new GetPredecessorReplyMessage(predecessor), from);
     }
 
-    private void UponGetPredecessorReplyMessage(GetPredecessorReplyMessage msg, Host from, short sourceProto, int channelId) {
+    private void uponGetPredecessorReplyMessage(GetPredecessorReplyMessage msg, Host from, short sourceProto, int channelId) {
         logger.info("Received {} from {}", msg, from);
         if(ring.InBounds(msg.getPredecessor().getId(), self.getId(), getSuccessor().getId()))
             setSuccessor(msg.getPredecessor());
-        dispatchMessage(new NotifySuccessorMessage(), getSuccessor().getHost());
+        dispatchMessage(new NotifySuccessorMessage(), msg.getPredecessor().getHost());
     }
 
-    private void UponNotifySuccessorMessage(NotifySuccessorMessage msg, Host from, short sourceProto, int channelId) {
+    private void uponNotifySuccessorMessage(NotifySuccessorMessage msg, Host from, short sourceProto, int channelId) {
         logger.info("Received {} from {}", msg, from);
         Node node = new Node(from, m);
         if(ring.InBounds(node.getId(), predecessor.getId(), self.getId()))
@@ -231,7 +261,7 @@ public class ChordProtocol extends BaseProtocol {
         nextFinger++;
     }
 
-    private void UponRestoreFingerMessage(RestoreFingerMessage msg, Host from, short sourceProto, int channelId) {
+    private void uponRestoreFingerMessage(RestoreFingerMessage msg, Host from, short sourceProto, int channelId) {
         logger.info("Received {} from {}", msg, from);
         if(ring.InBounds(msg.getKey(), self.getId(), getSuccessor().getId()))
             dispatchMessage(new RestoreFingerReplyMessage(msg.getFinger(), getSuccessor()), msg.getHost());
@@ -241,7 +271,7 @@ public class ChordProtocol extends BaseProtocol {
         }
     }
 
-    private void UponRestoreFingerReplyMessage(RestoreFingerReplyMessage msg, Host from, short sourceProto, int channelId) {
+    private void uponRestoreFingerReplyMessage(RestoreFingerReplyMessage msg, Host from, short sourceProto, int channelId) {
         logger.info("Received {} from {}", msg, from);
         setFinger(msg.getFinger(), msg.getNode());
     }
@@ -251,7 +281,7 @@ public class ChordProtocol extends BaseProtocol {
     private void uponKeepAliveTime(KeepAliveTimer timer, long timerId) {
         if(!bIsInsideRing) return;
 
-        dispatchMessageButNotToSelf(new KeepAliveMessage(), predecessor.getHost());
+        if(predecessor != null) dispatchMessageButNotToSelf(new KeepAliveMessage(), predecessor.getHost());
         for(Node node : fingers) {
             dispatchMessageButNotToSelf(new KeepAliveMessage(), node.getHost());
         }
@@ -317,9 +347,9 @@ public class ChordProtocol extends BaseProtocol {
 
     private void uponInfoTime(InfoTimer timer, long timerId) {
         StringBuilder sb = new StringBuilder("Chord Metrics:\n");
-        //sb.append("Membership: ").append(membership).append("\n");
-        //sb.append("PendingMembership: ").append(pending).append("\n");
-        sb.append(getMetrics()); //getMetrics returns an object with the number of events of each type processed by this protocol.
+        sb.append("Predecessor: ").append(predecessor).append("\n");
+        sb.append("Successor: ").append(getSuccessor()).append("\n");
+        //sb.append(getMetrics()); //getMetrics returns an object with the number of events of each type processed by this protocol.
         logger.info(sb);
     }
 
