@@ -70,7 +70,15 @@ public abstract class BaseProtocol extends GenericProtocol {
         closeConnection(peer);
     }
 
+    protected void dispatchMessageButNotToSelf(ProtoMessage message, Host peer) {
+        if(!peer.equals(self))
+            dispatchMessage(message,peer);
+    }
+
     protected void dispatchMessage(ProtoMessage message, Host peer) {
+        if(peer.equals(self))
+            logger.error("Sending message to my self {} message: {}", self, message);
+
         if(openConnections.contains(peer)) {
             sendMessage(message, peer);
         }
@@ -80,25 +88,24 @@ public abstract class BaseProtocol extends GenericProtocol {
         else {
             openConnection(peer);
             pendingConnections.add(peer);
-            pendingMessages.put(peer, new LinkedList<>(Collections.singleton(message)));
+            pendingMessages.put(peer, Collections.synchronizedList(new LinkedList<>(Collections.singleton(message))));
         }
     }
 
     protected void uponOutConnectionUp(OutConnectionUp event, int channelId) {
         Host peer = event.getNode();
-        logger.info("Connection to {} is up", peer);
+        logger.info("Out Connection from {} to {} is up", self, peer);
         openConnections.add(peer);
         pendingConnections.remove(peer);
 
-        for (ProtoMessage m : pendingMessages.get(peer))
-            sendMessage(m, peer);
+        Optional.ofNullable(pendingMessages.get(peer)).ifPresent(l -> l.forEach(m -> sendMessage(m, peer)));
 
         pendingMessages.remove(peer);
     }
 
     protected void uponOutConnectionDown(OutConnectionDown event, int channelId) {
         Host peer = event.getNode();
-        logger.info("Connection to {} is down cause {}", peer, event.getCause());
+        logger.info("Out Connection from {} to {} is down cause {}", self, peer, event.getCause());
         openConnections.remove(peer);
         pendingConnections.remove(peer);
         pendingMessages.remove(peer);
@@ -107,7 +114,7 @@ public abstract class BaseProtocol extends GenericProtocol {
 
     protected void uponOutConnectionFailed(OutConnectionFailed<ProtoMessage> event, int channelId) {
         Host peer = event.getNode();
-        logger.info("Connection to {} failed cause: {}", event.getNode(), event.getCause());
+        logger.info("Out Connection from {} to {} failed cause: {}", self, event.getNode(), event.getCause());
         openConnections.remove(peer);
         pendingConnections.remove(peer);
         pendingMessages.remove(peer);
@@ -116,12 +123,11 @@ public abstract class BaseProtocol extends GenericProtocol {
 
     protected void uponInConnectionUp(InConnectionUp event, int channelId) {
         Host peer = event.getNode();
-        logger.trace("Connection from {} is up", peer);
+        logger.info("In Connection from {} to {}  is up", peer, self);
         openConnections.add(peer);
         pendingConnections.remove(peer);
 
-        for (ProtoMessage m : pendingMessages.get(peer))
-            sendMessage(m, peer);
+        Optional.ofNullable(pendingMessages.get(peer)).ifPresent(l -> l.forEach(m -> sendMessage(m, peer)));
 
         pendingMessages.remove(peer);
     }
@@ -129,7 +135,7 @@ public abstract class BaseProtocol extends GenericProtocol {
 
     protected void uponInConnectionDown(InConnectionDown event, int channelId) {
         Host peer = event.getNode();
-        logger.trace("Connection from {} is down, cause: {}", peer, event.getCause());
+        logger.info("In Connection from {} to {} is down, cause: {}", peer, self, event.getCause());
         openConnections.remove(peer);
         pendingMessages.remove(peer);
     }

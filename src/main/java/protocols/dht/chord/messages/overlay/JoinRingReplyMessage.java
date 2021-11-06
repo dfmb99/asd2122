@@ -11,27 +11,27 @@ public class JoinRingReplyMessage extends ProtoMessage {
 
     public final static short MSG_ID = 203;
 
-    private final Node successor;
+    private final Node node;
 
-    public JoinRingReplyMessage(Node successor) {
+    public JoinRingReplyMessage(Node node) {
         super(MSG_ID);
-        this.successor = successor;
+        this.node = node;
     }
 
-    public Node getSuccessor() {
-        return successor;
+    public Node getNode() {
+        return node;
     }
 
     @Override
     public String toString() {
         return "FindSuccessorReplyMessage{" +
-                "successor=" + successor.toString() +
+                "node=" + node.toString() +
                 '}';
     }
 
     public static ISerializer<JoinRingReplyMessage> serializer = new ISerializer<>() {
         public void serialize(JoinRingReplyMessage sampleMessage, ByteBuf out) throws IOException {
-            Node.serializer.serialize(sampleMessage.getSuccessor(), out);
+            Node.serializer.serialize(sampleMessage.getNode(), out);
         }
 
         public JoinRingReplyMessage deserialize(ByteBuf in) throws IOException {

@@ -30,7 +30,7 @@ public class StorageProtocol extends BaseProtocol {
     private static final Logger logger = LogManager.getLogger(StorageProtocol.class);
 
     public static final String PROTOCOL_NAME = "StorageProtocol";
-    public static final short PROTOCOL_ID = 400;
+    public static final short PROTOCOL_ID = 40;
 
     private final short dhtProtoId;
 

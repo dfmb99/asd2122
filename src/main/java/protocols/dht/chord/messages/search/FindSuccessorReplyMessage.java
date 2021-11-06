@@ -1,6 +1,7 @@
 package protocols.dht.chord.messages.search;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import protocols.dht.chord.types.Node;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.network.ISerializer;
@@ -59,7 +60,7 @@ public class FindSuccessorReplyMessage extends ProtoMessage {
         @Override
         public FindSuccessorReplyMessage deserialize(ByteBuf in) throws IOException {
             UUID requestId = new UUID(in.readLong(), in.readLong());
-            BigInteger key = new BigInteger(in.readBytes(in.readInt()).array());
+            BigInteger key = new BigInteger(ByteBufUtil.getBytes(in.readBytes(in.readInt())));
             Node successor = Node.serializer.deserialize(in);
             return new FindSuccessorReplyMessage(requestId, key, successor);
         }

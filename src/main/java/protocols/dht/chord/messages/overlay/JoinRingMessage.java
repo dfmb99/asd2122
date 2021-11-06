@@ -31,8 +31,8 @@ public class JoinRingMessage extends ProtoMessage {
 
     public static ISerializer<JoinRingMessage> serializer = new ISerializer<>() {
         @Override
-        public void serialize(JoinRingMessage sampleMessage, ByteBuf out) throws IOException {
-            Node.serializer.serialize(sampleMessage.node, out);
+        public void serialize(JoinRingMessage msg, ByteBuf out) throws IOException {
+            Node.serializer.serialize(msg.node, out);
         }
 
         @Override

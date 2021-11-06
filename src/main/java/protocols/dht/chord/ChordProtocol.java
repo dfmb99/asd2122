@@ -36,9 +36,12 @@ public class ChordProtocol extends BaseProtocol {
     private final int m;
     private final Ring ring;
 
+    private boolean bIsInsideRing;
+
     private final Node self;
     private Node predecessor;
-    private Node[] fingers;
+    private final Node[] fingers;
+    private final BigInteger[] fingerPosition;
 
     public ChordProtocol(Properties props, Host self) throws IOException, HandlerRegistrationException {
         super(props, self, PROTOCOL_NAME, PROTOCOL_ID, logger, true);
@@ -50,6 +53,10 @@ public class ChordProtocol extends BaseProtocol {
         this.self = new Node(self,m);
         this.predecessor = null;
         this.fingers = new Node[m];
+        this.fingerPosition = new BigInteger[m];
+        for(int i=0; i<m; i++) {
+            fingerPosition[i] = this.self.getId().add(BigInteger.TWO.pow(nextFinger));
+        }
 
         /*--------------------- Register Timer Handlers ----------------------------- */
         registerTimerHandler(KeepAliveTimer.TIMER_ID, this::uponKeepAliveTime);
@@ -66,8 +73,8 @@ public class ChordProtocol extends BaseProtocol {
         /*---------------------- Register Message Handlers -------------------------- */
         registerMessageHandler(channelId, KeepAliveMessage.MSG_ID, this::UponKeepAliveMessage, this::uponKeepAliveMessageFail);
 
-        registerMessageHandler(channelId, JoinRingMessage.MSG_ID, this::UponJoinRingMessage, this::uponMessageFail);
-        registerMessageHandler(channelId, JoinRingReplyMessage.MSG_ID, this::UponJoinRingReplyMessage, this::uponMessageFail);
+        registerMessageHandler(channelId, JoinRingMessage.MSG_ID, this::uponJoinRingMessage, this::uponMessageFail);
+        registerMessageHandler(channelId, JoinRingReplyMessage.MSG_ID, this::uponJoinRingReplyMessage, this::uponMessageFail);
 
         registerMessageHandler(channelId, GetPredecessorMessage.MSG_ID, this::UponGetPredecessorMessage, this::uponMessageFail);
         registerMessageHandler(channelId, GetPredecessorReplyMessage.MSG_ID, this::UponGetPredecessorReplyMessage, this::uponMessageFail);
@@ -119,31 +126,35 @@ public class ChordProtocol extends BaseProtocol {
 
     @Override
     public void init(Properties props) {
-        buildRing(props);
+        enterRing(props);
 
         int keepAliveInterval = Integer.parseInt(props.getProperty("chord_keep_alive_interval", "4000"));
         setupPeriodicTimer(new KeepAliveTimer(), keepAliveInterval, keepAliveInterval);
 
-        int stabilizeInterval = Integer.parseInt(props.getProperty("chord_stabilize_interval", "300"));
+        int stabilizeInterval = Integer.parseInt(props.getProperty("chord_stabilize_interval", "1000"));
         setupPeriodicTimer(new StabilizeTimer(), stabilizeInterval, stabilizeInterval);
 
-        int fixFingerInterval = Integer.parseInt(props.getProperty("chord_fix_finger_interval", "300"));
+        int fixFingerInterval = Integer.parseInt(props.getProperty("chord_fix_finger_interval", "1000"));
         setupPeriodicTimer(new FixFingersTimer(), fixFingerInterval, fixFingerInterval);
 
         int metricsInterval = Integer.parseInt(props.getProperty("protocol_metrics_interval", "1000"));
         if (metricsInterval > 0)
             setupPeriodicTimer(new InfoTimer(), metricsInterval, metricsInterval);
 
-        triggerNotification(new ChannelCreated(channelId));
+        logger.info("Hello, I am {}", self);
     }
 
-    private void buildRing(Properties props) {
-        if(!props.containsKey("contact")) { //Create ring
+    private void enterRing(Properties props) {
+        if(!props.containsKey("contact")) {
+            bIsInsideRing = true;
             predecessor = self;
             setSuccessor(self);
+            triggerNotification(new ChannelCreated(channelId));
+            logger.info("Joined the ring {}", self.getHost());
             return;
         }
 
+        bIsInsideRing = false;
         try {
             String contact = props.getProperty("contact");
             String[] hostElems = contact.split(":");
@@ -158,7 +169,7 @@ public class ChordProtocol extends BaseProtocol {
 
     /*--------------------------------- Join Ring -------------------------------------- */
 
-    private void UponJoinRingMessage(JoinRingMessage msg, Host from, short sourceProto, int channelId) {
+    private void uponJoinRingMessage(JoinRingMessage msg, Host from, short sourceProto, int channelId) {
         logger.info("Received {} from {}", msg, from);
         Node node = msg.getNode();
         if(ring.InBounds(node.getId(), self.getId(), getSuccessor().getId())){
@@ -170,16 +181,21 @@ public class ChordProtocol extends BaseProtocol {
         }
     }
 
-    private void UponJoinRingReplyMessage(JoinRingReplyMessage msg, Host from, short sourceProto, int channelId) {
+    private void uponJoinRingReplyMessage(JoinRingReplyMessage msg, Host from, short sourceProto, int channelId) {
         logger.info("Received {} from {}", msg, from);
-        setSuccessor(msg.getSuccessor());
+        bIsInsideRing = true;
+        setSuccessor(msg.getNode());
+        triggerNotification(new ChannelCreated(channelId));
+        logger.info("Joined the ring {}", self.getHost());
     }
 
 
     /*--------------------------------- Stabilize -------------------------------------- */
 
     private void uponStabilizeTime(StabilizeTimer timer, long timerId) {
-        dispatchMessage(new GetPredecessorMessage(), getSuccessor().getHost());
+        if(!bIsInsideRing) return;
+
+        dispatchMessageButNotToSelf(new GetPredecessorMessage(), getSuccessor().getHost());
     }
 
     private void UponGetPredecessorMessage(GetPredecessorMessage msg, Host from, short sourceProto, int channelId) {
@@ -205,21 +221,21 @@ public class ChordProtocol extends BaseProtocol {
 
     private int nextFinger = 1;
     private void uponFixFingersTime(FixFingersTimer timer, long timerId) {
+        if(!bIsInsideRing) return;
+
         if(nextFinger >= m) nextFinger = 1;
-        BigInteger key = self.getId().add(BigInteger.TWO.pow(nextFinger));
-        Node closestPrecedingNode = closestPrecedingNode(key);
-        if(closestPrecedingNode.getId().compareTo(self.getId()) == 0)
+        Node closestPrecedingNode = closestPrecedingNode(fingerPosition[nextFinger]);
+        if(closestPrecedingNode.equals(self))
             setFinger(nextFinger, getSuccessor());
         else
-            dispatchMessage(new RestoreFingerMessage(nextFinger, key, self.getHost()), closestPrecedingNode.getHost());
+            dispatchMessage(new RestoreFingerMessage(nextFinger, fingerPosition[nextFinger], self.getHost()), closestPrecedingNode.getHost());
         nextFinger++;
     }
 
     private void UponRestoreFingerMessage(RestoreFingerMessage msg, Host from, short sourceProto, int channelId) {
         logger.info("Received {} from {}", msg, from);
-        if(ring.InBounds(msg.getKey(), self.getId(), getSuccessor().getId())){
+        if(ring.InBounds(msg.getKey(), self.getId(), getSuccessor().getId()))
             dispatchMessage(new RestoreFingerReplyMessage(msg.getFinger(), getSuccessor()), msg.getHost());
-        }
         else {
             Node closestPrecedingNode = closestPrecedingNode(msg.getKey());
             dispatchMessage(msg, closestPrecedingNode.getHost());
@@ -234,15 +250,21 @@ public class ChordProtocol extends BaseProtocol {
     /*------------------------------ Check Predecessor --------------------------------- */
 
     private void uponKeepAliveTime(KeepAliveTimer timer, long timerId) {
-        dispatchMessage(new KeepAliveMessage(), predecessor.getHost());
+        if(!bIsInsideRing) return;
+
+        dispatchMessageButNotToSelf(new KeepAliveMessage(), predecessor.getHost());
+        for(Node node : fingers) {
+            dispatchMessageButNotToSelf(new KeepAliveMessage(), node.getHost());
+        }
     }
 
     private void UponKeepAliveMessage(KeepAliveMessage msg, Host from, short sourceProto, int channelId) {}
 
-    private void uponKeepAliveMessageFail(ProtoMessage msg, Host host, short destProto, Throwable throwable, int channelId) {
+    private void uponKeepAliveMessageFail(KeepAliveMessage msg, Host host, short destProto, Throwable throwable, int channelId) {
         logger.error("Keep Alive Message {} to {} failed, reason: {}", msg, host, throwable);
-        breakConnection(predecessor.getHost());
-        predecessor = null;
+        breakConnection(host);
+        if(host.equals(predecessor.getHost()))
+            predecessor = null;
     }
 
     /*----------------------------------- Search --------------------------------------- */
@@ -256,7 +278,10 @@ public class ChordProtocol extends BaseProtocol {
         }
         else{
             Node closestPrecedingNode = closestPrecedingNode(key);
-            dispatchMessage(new FindSuccessorMessage(request.getRequestId(), key, self.getHost()), closestPrecedingNode.getHost());
+            if(closestPrecedingNode.equals(self))
+                sendReply(new LookupReply(request.getRequestId(), getSuccessor()), StorageProtocol.PROTOCOL_ID);
+            else
+                dispatchMessage(new FindSuccessorMessage(request.getRequestId(), key, self.getHost()), closestPrecedingNode.getHost());
         }
     }
 
@@ -267,7 +292,10 @@ public class ChordProtocol extends BaseProtocol {
         }
         else{
             Node closestPrecedingNode = closestPrecedingNode(msg.getKey());
-            dispatchMessage(msg, closestPrecedingNode.getHost());
+            if(closestPrecedingNode.equals(self))
+                dispatchMessage(new FindSuccessorReplyMessage(msg.getRequestId(), msg.getKey(), getSuccessor()), msg.getHost());
+            else
+                dispatchMessage(msg, closestPrecedingNode.getHost());
         }
     }
 

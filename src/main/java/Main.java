@@ -40,8 +40,6 @@ public class Main {
         Host myself =  new Host(InetAddress.getByName(props.getProperty("address")),
                 Integer.parseInt(props.getProperty("port")));
 
-        logger.info("Hello, I am {}", myself);
-
         // Application
         //AutomatedApplication app = new AutomatedApplication(myself, props, (short) 0 /**change this parameter to map the id of the Storage Protocol**/);
         // Storage Protocol
