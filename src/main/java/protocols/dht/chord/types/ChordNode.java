@@ -2,7 +2,6 @@ package protocols.dht.chord.types;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
-import protocols.dht.chord.KeyGenerator;
 import pt.unl.fct.di.novasys.network.ISerializer;
 import pt.unl.fct.di.novasys.network.data.Host;
 
@@ -12,20 +11,20 @@ import java.util.Objects;
 
 public class ChordNode {
 
-    private final BigInteger id;
+    private final ChordKey id;
     private final Host host;
 
-    public ChordNode(Host host, int m) {
-        this.id = KeyGenerator.gen(host.toString(), m);
+    public ChordNode(Host host) {
+        this.id = ChordKey.of(host.toString());
         this.host = host;
     }
 
-    private ChordNode(BigInteger id, Host host) {
+    private ChordNode(ChordKey id, Host host) {
         this.id = id;
         this.host = host;
     }
 
-    public BigInteger getId() {
+    public ChordKey getId() {
         return id;
     }
 
@@ -63,14 +62,12 @@ public class ChordNode {
 
     public static ISerializer<ChordNode> serializer = new ISerializer<>() {
         public void serialize(ChordNode node, ByteBuf out) throws IOException {
-            byte[] idBytes = node.id.toByteArray();
-            out.writeInt(idBytes.length);
-            out.writeBytes(idBytes);
+            ChordKey.serializer.serialize(node.id, out);
             Host.serializer.serialize(node.host, out);
         }
 
         public ChordNode deserialize(ByteBuf in) throws IOException {
-            BigInteger id = new BigInteger(ByteBufUtil.getBytes(in.readBytes(in.readInt())));
+            ChordKey id = ChordKey.serializer.deserialize(in);
             Host host = Host.serializer.deserialize(in);
             return new ChordNode(id, host);
         }
