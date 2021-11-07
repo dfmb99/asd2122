@@ -157,7 +157,6 @@ public class AutomatedApplication extends GenericProtocol {
 	private void uponStoreOk(StoreOKReply reply, short sourceProto) {
 		this.storedKeys++;
 		this.storeRequestsCompleted++;
-		logger.info("{}: Store Successful for content with name: {} (requestId {})", self, reply.getName(), reply.getRequestId());
 		if(this.storedKeys >= this.numberContents) {
 			//Start requests periodically
 			requestTimer = setupPeriodicTimer(new RequestTimer(), 0, requestInterval);
@@ -174,12 +173,10 @@ public class AutomatedApplication extends GenericProtocol {
 	}
 	
 	private void uponRetrieveOK(RetrieveOKReply reply, short sourceProto) {
-		logger.info("{}: Retrieve successful for content with name: {} with size {} bytes (requestId {})", self, reply.getName(), reply.getContent().length, reply.getRequestId());
 		this.retrieveRequestsSuccessful++;
 	}
 	
 	private void uponRetrieveFailed(RetrieveFailedReply reply, short sourceProto) {
-		logger.info("{}: Retrieve failed for content with name: {} bytes (requestId {})", self, reply.getName(), reply.getRequestId());
 		this.retrieveRequestsFailed++;
 	}
 

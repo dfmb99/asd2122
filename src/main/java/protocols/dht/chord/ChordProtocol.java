@@ -212,11 +212,11 @@ public class ChordProtocol extends BaseProtocol {
 
     /*----------------------------------- Fix Fingers --------------------------------- */
 
-    private int nextFinger = 0;
+    private int nextFinger = 1;
     private void uponFixFingersTime(FixFingersTimer timer, long timerId) {
-        if(!bIsInsideRing) return;
+        if(!bIsInsideRing || fingers.length == 1) return;
 
-        if(nextFinger >= fingers.length) nextFinger = 0;
+        if(nextFinger >= fingers.length) nextFinger = 1;
         ChordNode closestPrecedingNode = closestPrecedingNode(fingerSegment[nextFinger]);
         if(ChordNode.equals(closestPrecedingNode,self))
             setFinger(nextFinger, getSuccessor());
