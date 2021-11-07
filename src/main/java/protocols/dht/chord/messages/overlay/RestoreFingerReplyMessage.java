@@ -2,6 +2,7 @@ package protocols.dht.chord.messages.overlay;
 
 import io.netty.buffer.ByteBuf;
 import protocols.dht.chord.types.ChordNode;
+import protocols.dht.chord.types.ChordSegment;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.network.ISerializer;
 
@@ -11,17 +12,17 @@ public class RestoreFingerReplyMessage extends ProtoMessage {
 
     public final static short MSG_ID = 207;
 
-    private final int finger;
+    private final ChordSegment segment;
     private final ChordNode node;
 
-    public RestoreFingerReplyMessage(int finger, ChordNode node) {
+    public RestoreFingerReplyMessage(ChordSegment segment, ChordNode node) {
         super(MSG_ID);
-        this.finger = finger;
+        this.segment = segment;
         this.node = node;
     }
 
-    public int getFinger() {
-        return finger;
+    public ChordSegment getSegment() {
+        return segment;
     }
 
     public ChordNode getNode() {
@@ -31,7 +32,7 @@ public class RestoreFingerReplyMessage extends ProtoMessage {
     @Override
     public String toString() {
         return "RestoreFingerReplyMessage{" +
-                "finger=" + finger +
+                "segment=" + segment +
                 ", node=" + node +
                 '}';
     }
@@ -39,15 +40,15 @@ public class RestoreFingerReplyMessage extends ProtoMessage {
     public static ISerializer<RestoreFingerReplyMessage> serializer = new ISerializer<>() {
         @Override
         public void serialize(RestoreFingerReplyMessage sampleMessage, ByteBuf out) throws IOException {
-            out.writeInt(sampleMessage.finger);
+            ChordSegment.serializer.serialize(sampleMessage.segment, out);
             ChordNode.serializer.serialize(sampleMessage.node, out);
         }
 
         @Override
         public RestoreFingerReplyMessage deserialize(ByteBuf in) throws IOException {
-            int finger = in.readInt();
+            ChordSegment segment = ChordSegment.serializer.deserialize(in);
             ChordNode node = ChordNode.serializer.deserialize(in);
-            return new RestoreFingerReplyMessage(finger, node);
+            return new RestoreFingerReplyMessage(segment, node);
         }
     };
 }

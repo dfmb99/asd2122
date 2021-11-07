@@ -228,7 +228,7 @@ public class ChordProtocol extends BaseProtocol {
     private void uponRestoreFingerMessage(RestoreFingerMessage msg, Host from, short sourceProto, int channelId) {
         logger.info("Received {} from {}", msg, from);
         if(ring.inBounds(ChordKey.of(msg.getSegment()), self, getSuccessor()))
-            dispatchMessage(new RestoreFingerReplyMessage(msg.getSegment().fingerIndex, getSuccessor()), msg.getHost());
+            dispatchMessage(new RestoreFingerReplyMessage(msg.getSegment(), getSuccessor()), msg.getHost());
         else {
             ChordNode closestPrecedingNode = closestPrecedingNode(msg.getSegment());
             dispatchMessage(msg, closestPrecedingNode.getHost());
@@ -237,8 +237,8 @@ public class ChordProtocol extends BaseProtocol {
 
     private void uponRestoreFingerReplyMessage(RestoreFingerReplyMessage msg, Host from, short sourceProto, int channelId) {
         logger.info("Received {} from {}", msg, from);
-        if(!ChordNode.equals(self,msg.getNode()))
-            setFinger(msg.getFinger(), msg.getNode());
+        if(ring.inBounds(ChordKey.of(msg.getSegment()), self, msg.getNode()))
+            setFinger(msg.getSegment().fingerIndex, msg.getNode());
     }
 
     /*------------------------------ Check Predecessor --------------------------------- */
@@ -256,12 +256,7 @@ public class ChordProtocol extends BaseProtocol {
 
     private void uponKeepAliveMessageFail(KeepAliveMessage msg, Host host, short destProto, Throwable throwable, int channelId) {
         logger.error("Keep Alive Message {} to {} failed, reason: {}", msg, host, throwable);
-
-        if(ChordNode.equals(host, predecessor))
-            predecessor = self;
-
-        if(ChordNode.equals(host, getSuccessor()))
-            setSuccessor(self);
+        removeHostFromView(host);
     }
 
     @Override
@@ -271,12 +266,20 @@ public class ChordProtocol extends BaseProtocol {
         channel.openConnections.remove(host);
         channel.pendingConnections.remove(host);
         pendingMessages.remove(host);
+        removeHostFromView(host);
+    }
+
+    private void removeHostFromView(Host host) {
+        if(ChordNode.equals(host, fingers[fingers.length-1]))
+            fingers[fingers.length-1] = self;
+
+        for(int i=fingers.length-2; i>=0; i--) {
+            if(ChordNode.equals(host, fingers[i]))
+                fingers[i] = fingers[i+1];
+        }
 
         if(ChordNode.equals(host, predecessor))
             predecessor = self;
-
-        if(ChordNode.equals(host, getSuccessor()))
-            setSuccessor(self);
     }
 
 
@@ -329,7 +332,7 @@ public class ChordProtocol extends BaseProtocol {
 
     private ChordNode closestPrecedingNode(ChordKey key){
         for(int i = fingers.length-1; i >= 0; i--){
-            if(ring.inBounds(key, fingers[i], self)){
+            if(!fingers[i].equals(self) && ring.inBounds(key, fingers[i], self)){
                 return fingers[i];
             }
         }
