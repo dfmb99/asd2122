@@ -227,7 +227,7 @@ public class ChordProtocol extends BaseProtocol {
 
     private void uponRestoreFingerMessage(RestoreFingerMessage msg, Host from, short sourceProto, int channelId) {
         logger.info("Received {} from {}", msg, from);
-        if(ring.inBounds(ChordKey.of(msg.getSegment()), self, getSuccessor()))
+        if(ring.inBounds(msg.getSegment(), self, getSuccessor()))
             dispatchMessage(new RestoreFingerReplyMessage(msg.getSegment(), getSuccessor()), msg.getHost());
         else {
             ChordNode closestPrecedingNode = closestPrecedingNode(msg.getSegment());
@@ -237,7 +237,7 @@ public class ChordProtocol extends BaseProtocol {
 
     private void uponRestoreFingerReplyMessage(RestoreFingerReplyMessage msg, Host from, short sourceProto, int channelId) {
         logger.info("Received {} from {}", msg, from);
-        if(ring.inBounds(ChordKey.of(msg.getSegment()), self, msg.getNode()))
+        if(ring.inBounds(msg.getSegment(), self, msg.getNode()))
             setFinger(msg.getSegment().fingerIndex, msg.getNode());
     }
 

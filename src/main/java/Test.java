@@ -13,9 +13,9 @@ public class Test {
         ChordKey lower = ChordKey.of("127.0.0.1:8081");
         ChordKey upper = ChordKey.of("127.0.0.1:8082");
 
-        System.out.println(val.compact);
-        System.out.println(lower.compact);
-        System.out.println(upper.compact);
+        System.out.println(val.ringPosition);
+        System.out.println(lower.ringPosition);
+        System.out.println(upper.ringPosition);
         System.out.println(new Ring(BigInteger.TWO.pow(4)).inBounds(val,lower,upper));
     }
 }

@@ -11,7 +11,7 @@ import java.math.BigInteger;
 public class ChordKey implements Comparable<ChordKey> {
 
     public final BigInteger full;
-    public final BigInteger compact;
+    public final BigInteger ringPosition;
 
     public static ChordKey of(String seed) {
         BigInteger full = HashGenerator.generateHash(seed).abs();
@@ -20,21 +20,21 @@ public class ChordKey implements Comparable<ChordKey> {
     }
 
     public static ChordKey of(ChordSegment segment) {
-        return new ChordKey(BigInteger.ZERO,segment.ringLocation);
+        return new ChordKey(BigInteger.ZERO,segment.ringPosition);
     }
 
-    private ChordKey(BigInteger full, BigInteger compact) {
+    private ChordKey(BigInteger full, BigInteger ringPosition) {
         this.full = full;
-        this.compact = compact;
+        this.ringPosition = ringPosition;
     }
 
     public ChordKey getKeyAfterRingLoop(BigInteger ringSize) {
-        return new ChordKey(full, compact.add(ringSize));
+        return new ChordKey(full, ringPosition.add(ringSize));
     }
 
     @Override
     public int compareTo(ChordKey other) {
-        int e = compact.compareTo(other.compact);
+        int e = ringPosition.compareTo(other.ringPosition);
         if(e == 0)
             return full.compareTo(other.full);
         else
@@ -45,7 +45,7 @@ public class ChordKey implements Comparable<ChordKey> {
     public String toString() {
         return "ChordKey{" +
                 "full=" + full +
-                ", compact=" + compact +
+                ", ringPosition=" + ringPosition +
                 '}';
     }
 
@@ -58,8 +58,8 @@ public class ChordKey implements Comparable<ChordKey> {
 
         public ChordKey deserialize(ByteBuf in) {
             BigInteger full = new BigInteger(ByteBufUtil.getBytes(in.readBytes(in.readInt())));
-            BigInteger compact = full.shiftRight(full.bitLength() - ChordProtocol.M);
-            return new ChordKey(full, compact);
+            BigInteger ringPosition = full.shiftRight(full.bitLength() - ChordProtocol.M);
+            return new ChordKey(full, ringPosition);
         }
     };
 
