@@ -11,6 +11,7 @@ import protocols.dht.kademlia.types.Bucket;
 import protocols.dht.kademlia.types.Node;
 import pt.unl.fct.di.novasys.babel.exceptions.HandlerRegistrationException;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
+import pt.unl.fct.di.novasys.channel.tcp.events.*;
 import pt.unl.fct.di.novasys.network.data.Host;
 
 import java.io.IOException;
@@ -34,17 +35,24 @@ public class KademliaProtocol extends BaseProtocol {
 
 
     public KademliaProtocol(Properties props, Host self) throws IOException, HandlerRegistrationException {
-        super(props, self, PROTOCOL_NAME, PROTOCOL_ID, logger, true);
+        super(self, PROTOCOL_NAME, PROTOCOL_ID, logger);
 
         this.self = new Node(self);
         this.routingTable = new ArrayList<>();
 
+        /*------------------------- Create TCP Channel -------------------------------- */
+        createChannel(props);
+
         /*---------------------- Register Channel Events ------------------------------ */
-        registerChannelEvents();
+        registerChannelEventHandler(channel.id, OutConnectionDown.EVENT_ID, this::uponOutConnectionDown);
+        registerChannelEventHandler(channel.id, OutConnectionFailed.EVENT_ID, this::uponOutConnectionFailed);
+        registerChannelEventHandler(channel.id, OutConnectionUp.EVENT_ID, this::uponOutConnectionUp);
+        registerChannelEventHandler(channel.id, InConnectionUp.EVENT_ID, this::uponInConnectionUp);
+        registerChannelEventHandler(channel.id, InConnectionDown.EVENT_ID, this::uponInConnectionDown);
 
         /*---------------------- Register Message Handlers -------------------------- */
-        registerMessageHandler(channelId, FindNodeMessage.MSG_ID, this::UponFindNodeMessage, this::uponMessageFail);
-        registerMessageHandler(channelId, FindNodeReplyMessage.MSG_ID, this::UponFindNodeReplyMessage, this::uponMessageFail);
+        registerMessageHandler(channel.id, FindNodeMessage.MSG_ID, this::UponFindNodeMessage, this::uponMessageFail);
+        registerMessageHandler(channel.id, FindNodeReplyMessage.MSG_ID, this::UponFindNodeReplyMessage, this::uponMessageFail);
     }
 
     @Override
@@ -54,8 +62,6 @@ public class KademliaProtocol extends BaseProtocol {
         int metricsInterval = Integer.parseInt(props.getProperty("protocol_metrics_interval", "1000"));
         if (metricsInterval > 0)
             setupPeriodicTimer(new InfoTimer(), metricsInterval, metricsInterval);
-
-        triggerNotification(new ChannelCreated(channelId));
     }
 
     private void buildRoutingTable(Properties props) {
