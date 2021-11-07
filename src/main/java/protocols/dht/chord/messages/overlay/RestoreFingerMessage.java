@@ -1,6 +1,7 @@
 package protocols.dht.chord.messages.overlay;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.network.ISerializer;
 import pt.unl.fct.di.novasys.network.data.Host;
@@ -39,8 +40,8 @@ public class RestoreFingerMessage extends ProtoMessage {
     public String toString() {
         return "RestoreFingerMessage{" +
                 "finger=" + finger +
-                "key=" + key.toString() +
-                "host=" + host.toString() +
+                ", key=" + key +
+                ", host=" + host +
                 '}';
     }
 
@@ -57,7 +58,7 @@ public class RestoreFingerMessage extends ProtoMessage {
         @Override
         public RestoreFingerMessage deserialize(ByteBuf in) throws IOException {
             int finger = in.readInt();
-            BigInteger key = new BigInteger(in.readBytes(in.readInt()).array());
+            BigInteger key = new BigInteger(ByteBufUtil.getBytes(in.readBytes(in.readInt())));
             Host host = Host.serializer.deserialize(in);
             return new RestoreFingerMessage(finger, key, host);
         }

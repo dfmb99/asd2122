@@ -1,7 +1,7 @@
 package protocols.dht.chord.messages.overlay;
 
 import io.netty.buffer.ByteBuf;
-import protocols.dht.chord.types.Node;
+import protocols.dht.chord.types.ChordNode;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.network.ISerializer;
 
@@ -11,31 +11,31 @@ public class JoinRingReplyMessage extends ProtoMessage {
 
     public final static short MSG_ID = 203;
 
-    private final Node successor;
+    private final ChordNode node;
 
-    public JoinRingReplyMessage(Node successor) {
+    public JoinRingReplyMessage(ChordNode node) {
         super(MSG_ID);
-        this.successor = successor;
+        this.node = node;
     }
 
-    public Node getSuccessor() {
-        return successor;
+    public ChordNode getNode() {
+        return node;
     }
 
     @Override
     public String toString() {
-        return "FindSuccessorReplyMessage{" +
-                "successor=" + successor.toString() +
+        return "JoinRingReplyMessage{" +
+                "node=" + node.toString() +
                 '}';
     }
 
     public static ISerializer<JoinRingReplyMessage> serializer = new ISerializer<>() {
         public void serialize(JoinRingReplyMessage sampleMessage, ByteBuf out) throws IOException {
-            Node.serializer.serialize(sampleMessage.getSuccessor(), out);
+            ChordNode.serializer.serialize(sampleMessage.getNode(), out);
         }
 
         public JoinRingReplyMessage deserialize(ByteBuf in) throws IOException {
-            Node node = Node.serializer.deserialize(in);
+            ChordNode node = ChordNode.serializer.deserialize(in);
             return new JoinRingReplyMessage(node);
         }
     };

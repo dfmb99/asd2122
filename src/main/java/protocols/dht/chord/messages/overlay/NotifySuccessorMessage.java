@@ -16,7 +16,7 @@ public class NotifySuccessorMessage extends ProtoMessage {
 
     @Override
     public String toString() {
-        return "GetPredecessorMessage";
+        return "NotifySuccessorMessage";
     }
 
     public static ISerializer<NotifySuccessorMessage> serializer = new ISerializer<>() {

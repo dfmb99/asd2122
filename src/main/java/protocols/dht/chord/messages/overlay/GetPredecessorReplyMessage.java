@@ -1,7 +1,7 @@
 package protocols.dht.chord.messages.overlay;
 
 import io.netty.buffer.ByteBuf;
-import protocols.dht.chord.types.Node;
+import protocols.dht.chord.types.ChordNode;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.network.ISerializer;
 
@@ -11,31 +11,31 @@ public class GetPredecessorReplyMessage extends ProtoMessage {
 
     public final static short MSG_ID = 201;
 
-    private final Node predecessor;
+    private final ChordNode predecessor;
 
-    public GetPredecessorReplyMessage(Node predecessor) {
+    public GetPredecessorReplyMessage(ChordNode predecessor) {
         super(MSG_ID);
         this.predecessor = predecessor;
     }
 
-    public Node getPredecessor() {
+    public ChordNode getPredecessor() {
         return predecessor;
     }
 
     @Override
     public String toString() {
-        return "FindSuccessorReplyMessage{" +
+        return "GetPredecessorReplyMessage{" +
                 "predecessor=" + predecessor.toString() +
                 '}';
     }
 
     public static ISerializer<GetPredecessorReplyMessage> serializer = new ISerializer<>() {
         public void serialize(GetPredecessorReplyMessage sampleMessage, ByteBuf out) throws IOException {
-            Node.serializer.serialize(sampleMessage.getPredecessor(), out);
+            ChordNode.serializer.serialize(sampleMessage.getPredecessor(), out);
         }
 
         public GetPredecessorReplyMessage deserialize(ByteBuf in) throws IOException {
-            Node node = Node.serializer.deserialize(in);
+            ChordNode node = ChordNode.serializer.deserialize(in);
             return new GetPredecessorReplyMessage(node);
         }
     };

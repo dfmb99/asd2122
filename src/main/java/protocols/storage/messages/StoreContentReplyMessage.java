@@ -30,8 +30,9 @@ public class StoreContentReplyMessage extends ProtoMessage {
 
     @Override
     public String toString() {
-        return "StoreContentMessage{" +
-                "name=" + name +
+        return "StoreContentReplyMessage{" +
+                "requestId=" + requestId +
+                ", name='" + name + '\'' +
                 '}';
     }
 
