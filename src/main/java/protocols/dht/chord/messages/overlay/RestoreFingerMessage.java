@@ -40,8 +40,8 @@ public class RestoreFingerMessage extends ProtoMessage {
     public String toString() {
         return "RestoreFingerMessage{" +
                 "finger=" + finger +
-                "key=" + key.toString() +
-                "host=" + host.toString() +
+                ", key=" + key +
+                ", host=" + host +
                 '}';
     }
 

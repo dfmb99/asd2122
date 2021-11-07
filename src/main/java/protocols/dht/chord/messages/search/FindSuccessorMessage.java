@@ -40,9 +40,9 @@ public class FindSuccessorMessage extends ProtoMessage {
     @Override
     public String toString() {
         return "FindSuccessorMessage{" +
-                "requestId=" + requestId.toString() +
-                "key=" + key.toString() +
-                "host=" + host.toString() +
+                "requestId=" + requestId +
+                ", key=" + key +
+                ", host=" + host +
                 '}';
     }
 

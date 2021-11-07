@@ -10,17 +10,17 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.util.Objects;
 
-public class Node {
+public class ChordNode {
 
     private final BigInteger id;
     private final Host host;
 
-    public Node(Host host, int m) {
+    public ChordNode(Host host, int m) {
         this.id = KeyGenerator.gen(host.toString(), m);
         this.host = host;
     }
 
-    private Node(BigInteger id, Host host) {
+    private ChordNode(BigInteger id, Host host) {
         this.id = id;
         this.host = host;
     }
@@ -33,6 +33,26 @@ public class Node {
         return host;
     }
 
+    public static boolean equals(ChordNode first, ChordNode second) {
+        if(first == null) return false;
+        else return first.equals(second);
+    }
+
+    public static boolean equals(ChordNode first, Host second) {
+        if(first == null) return false;
+        else return first.host.equals(second);
+    }
+
+    public static boolean equals(Host first, ChordNode second) {
+        if(first == null) return false;
+        else return first.equals(second.host);
+    }
+
+    public static boolean equals(Host first, Host second) {
+        if(first == null) return false;
+        else return first.equals(second);
+    }
+
     @Override
     public String toString() {
         return "Node{" +
@@ -41,26 +61,26 @@ public class Node {
                 '}';
     }
 
-    public static ISerializer<Node> serializer = new ISerializer<>() {
-        public void serialize(Node node, ByteBuf out) throws IOException {
+    public static ISerializer<ChordNode> serializer = new ISerializer<>() {
+        public void serialize(ChordNode node, ByteBuf out) throws IOException {
             byte[] idBytes = node.id.toByteArray();
             out.writeInt(idBytes.length);
             out.writeBytes(idBytes);
-            Host.serializer.serialize(node.getHost(), out);
+            Host.serializer.serialize(node.host, out);
         }
 
-        public Node deserialize(ByteBuf in) throws IOException {
+        public ChordNode deserialize(ByteBuf in) throws IOException {
             BigInteger id = new BigInteger(ByteBufUtil.getBytes(in.readBytes(in.readInt())));
             Host host = Host.serializer.deserialize(in);
-            return new Node(id, host);
+            return new ChordNode(id, host);
         }
     };
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof Node)) return false;
-        Node node = (Node) o;
+        if (!(o instanceof ChordNode)) return false;
+        ChordNode node = (ChordNode) o;
         return host.equals(node.host);
     }
 

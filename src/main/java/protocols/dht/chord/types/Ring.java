@@ -1,4 +1,4 @@
-package utils;
+package protocols.dht.chord.types;
 
 import java.math.BigInteger;
 

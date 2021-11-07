@@ -1,7 +1,7 @@
 package protocols.dht.chord.messages.overlay;
 
 import io.netty.buffer.ByteBuf;
-import protocols.dht.chord.types.Node;
+import protocols.dht.chord.types.ChordNode;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.network.ISerializer;
 
@@ -11,14 +11,14 @@ public class JoinRingMessage extends ProtoMessage {
 
     public final static short MSG_ID = 202;
 
-    Node node;
+    ChordNode node;
 
-    public JoinRingMessage(Node node) {
+    public JoinRingMessage(ChordNode node) {
         super(MSG_ID);
         this.node = node;
     }
 
-    public Node getNode() {
+    public ChordNode getNode() {
         return node;
     }
 
@@ -32,12 +32,12 @@ public class JoinRingMessage extends ProtoMessage {
     public static ISerializer<JoinRingMessage> serializer = new ISerializer<>() {
         @Override
         public void serialize(JoinRingMessage msg, ByteBuf out) throws IOException {
-            Node.serializer.serialize(msg.node, out);
+            ChordNode.serializer.serialize(msg.node, out);
         }
 
         @Override
         public JoinRingMessage deserialize(ByteBuf in) throws IOException {
-            Node node = Node.serializer.deserialize(in);
+            ChordNode node = ChordNode.serializer.deserialize(in);
             return new JoinRingMessage(node);
         }
     };

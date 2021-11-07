@@ -40,9 +40,9 @@ public abstract class BaseProtocol extends GenericProtocol {
             channelId = createChannel(TCPChannel.NAME, channelProps);
         }
 
-        openConnections = ConcurrentHashMap.newKeySet();
-        pendingConnections = ConcurrentHashMap.newKeySet();
-        pendingMessages = new ConcurrentHashMap<>();
+        openConnections = new HashSet<>();
+        pendingConnections = new HashSet<>();
+        pendingMessages = new HashMap<>();
     }
 
     @Override

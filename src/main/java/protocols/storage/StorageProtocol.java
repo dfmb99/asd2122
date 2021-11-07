@@ -34,7 +34,7 @@ public class StorageProtocol extends BaseProtocol {
 
     private final short dhtProtoId;
 
-    private Map<UUID, ProtoRequest> pendingRequests;
+    private final Map<UUID, ProtoRequest> pendingRequests;
 
     private final IPersistentStorage storage;
 
