@@ -4,7 +4,9 @@ import java.util.Properties;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import protocols.apps.AutomatedApplication;
 import protocols.dht.chord.ChordProtocol;
+import protocols.storage.StorageProtocol;
 import pt.unl.fct.di.novasys.babel.core.Babel;
 import pt.unl.fct.di.novasys.network.data.Host;
 import utils.InterfaceToIp;
@@ -41,21 +43,21 @@ public class Main {
                 Integer.parseInt(props.getProperty("port")));
 
         // Application
-        //AutomatedApplication app = new AutomatedApplication(myself, props, (short) 0 /**change this parameter to map the id of the Storage Protocol**/);
+        AutomatedApplication app = new AutomatedApplication(myself, props, StorageProtocol.PROTOCOL_ID);
         // Storage Protocol
-        //StorageProtocol storage = new ...; /**You need to uncomment this line and define the protocol**/
+        StorageProtocol storage = new StorageProtocol(props, myself, ChordProtocol.PROTOCOL_ID);
         // DHT Protocol
         ChordProtocol dht = new ChordProtocol(props, myself);
 
         //Register applications in babel
-        //babel.registerProtocol(app);
-        //babel.registerProtocol(storage);
+        babel.registerProtocol(app);
+        babel.registerProtocol(storage);
         babel.registerProtocol(dht);
 
         //Init the protocols. This should be done after creating all protocols, since there can be inter-protocol
         //communications in this step.
-        //app.init(props);
-        //storage.init(props);
+        app.init(props);
+        storage.init(props);
         dht.init(props);
 
         //Start babel and protocol threads

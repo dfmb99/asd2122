@@ -25,4 +25,11 @@ public class RetrieveRequest extends ProtoRequest {
 		return this.name;
 	}
 
+	@Override
+	public String toString() {
+		return "RetrieveRequest{" +
+				"requestId=" + requestId +
+				", name='" + name + '\'' +
+				'}';
+	}
 }

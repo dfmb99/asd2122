@@ -1,19 +1,16 @@
 package notifications;
 
+import protocols.Channel;
 import pt.unl.fct.di.novasys.babel.generic.ProtoNotification;
 
 public class ChannelCreated extends ProtoNotification {
 
     public static final short NOTIFICATION_ID = 100;
 
-    private final int channelId;
+    public final Channel channel;
 
-    public ChannelCreated(int channelId) {
+    public ChannelCreated(Channel channel) {
         super(NOTIFICATION_ID);
-        this.channelId = channelId;
-    }
-
-    public int getChannelId() {
-        return channelId;
+        this.channel = channel;
     }
 }

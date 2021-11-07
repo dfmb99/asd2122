@@ -2,7 +2,7 @@
   <configuration default="false" name="Node 0" type="Application" factoryName="Application">
     <option name="MAIN_CLASS_NAME" value="Main" />
     <module name="asd2122" />
-    <option name="PROGRAM_PARAMETERS" value="port=8080" />
+    <option name="PROGRAM_PARAMETERS" value="port=8080 my_index=1" />
     <option name="VM_PARAMETERS" value="-ea -DlogFilename=8080" />
     <method v="2">
       <option name="Make" enabled="true" />

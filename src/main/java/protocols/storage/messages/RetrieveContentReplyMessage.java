@@ -1,11 +1,12 @@
 package protocols.storage.messages;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.network.ISerializer;
 
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.UUID;
 
 public class RetrieveContentReplyMessage extends ProtoMessage {
@@ -14,12 +15,14 @@ public class RetrieveContentReplyMessage extends ProtoMessage {
 
     private final UUID requestId;
     private final String name;
+    private final boolean notFound;
     private final byte[] content;
 
-    public RetrieveContentReplyMessage(UUID requestId, String name, byte[] content) {
+    public RetrieveContentReplyMessage(UUID requestId, String name, boolean notFound, byte[] content) {
         super(MSG_ID);
         this.requestId = requestId;
         this.name = name;
+        this.notFound = notFound;
         this.content = content;
     }
 
@@ -31,6 +34,10 @@ public class RetrieveContentReplyMessage extends ProtoMessage {
         return name;
     }
 
+    public boolean isNotFound() {
+        return notFound;
+    }
+
     public byte[] getContent() {
         return content;
     }
@@ -39,7 +46,9 @@ public class RetrieveContentReplyMessage extends ProtoMessage {
     public String toString() {
         return "RetrieveContentReplyMessage{" +
                 "requestId=" + requestId +
-                "name=" + name +
+                ", name='" + name + '\'' +
+                ", bNotFound=" + notFound +
+                ", content=" + Arrays.toString(content) +
                 '}';
     }
 
@@ -51,16 +60,25 @@ public class RetrieveContentReplyMessage extends ProtoMessage {
             byte[] nameBytes = StandardCharsets.ISO_8859_1.encode(sampleMessage.name).array();
             out.writeInt(nameBytes.length);
             out.writeBytes(nameBytes);
-            out.writeInt(sampleMessage.content.length);
-            out.writeBytes(sampleMessage.content);
+            out.writeBoolean(sampleMessage.notFound);
+            if(!sampleMessage.notFound) {
+                out.writeInt(sampleMessage.content.length);
+                out.writeBytes(sampleMessage.content);
+            }
         }
 
         @Override
         public RetrieveContentReplyMessage deserialize(ByteBuf in) {
             UUID requestId = new UUID(in.readLong(), in.readLong());
-            String name = new String(in.readBytes(in.readInt()).array(), StandardCharsets.ISO_8859_1);
-            byte[] content = in.readBytes(in.readInt()).array();
-            return new RetrieveContentReplyMessage(requestId, name, content);
+            String name = new String(ByteBufUtil.getBytes(in.readBytes(in.readInt())), StandardCharsets.ISO_8859_1);
+            boolean bNotFound = in.readBoolean();
+            if(!bNotFound) {
+                byte[] content = ByteBufUtil.getBytes(in.readBytes(in.readInt()));
+                return new RetrieveContentReplyMessage(requestId, name, false, content);
+            }
+            else {
+                return new RetrieveContentReplyMessage(requestId, name, true, null);
+            }
         }
     };
 }
