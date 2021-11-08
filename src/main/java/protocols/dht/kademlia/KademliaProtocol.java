@@ -106,7 +106,6 @@ public class KademliaProtocol extends BaseProtocol {
         BigInteger lookUpId = msg.getLookUpId();
         int idx = findBucketIndex(lookUpId);
         List<Node> bucket = findBucket(lookUpId);
-        List<Node> closest = new ArrayList<>();
         Node peer = new Node(from);
 
         // if bucket contains peers removes from the list and adds it at the end
@@ -115,7 +114,13 @@ public class KademliaProtocol extends BaseProtocol {
             bucket.add(peer);
         }
 
-        // updates bucket with current bucket
+        List<Node> closest = getClosestList(lookUpId, bucket, idx);
+        dispatchMessage(new FindNodeReplyMessage(closest.toArray(new Node[0])), from);
+    }
+
+    private List<Node> getClosestList(BigInteger lookUpId, List<Node> bucket, int idx) {
+        List<Node> closest = new ArrayList<>();
+        // updates closest nodes with current bucket
         updateClosestList(lookUpId, bucket, closest);
 
         int i = 1;
@@ -130,7 +135,7 @@ public class KademliaProtocol extends BaseProtocol {
             }
             i++;
         }
-        dispatchMessage(new FindNodeReplyMessage(closest.toArray(new Node[0])), from);
+        return closest;
     }
 
     private void updateClosestList(BigInteger lookUpId, List<Node> bucket, List<Node> closest) {
@@ -166,6 +171,15 @@ public class KademliaProtocol extends BaseProtocol {
     private void UponFindNodeReplyMessage(FindNodeReplyMessage msg, Host from, short sourceProto, int channelId) {
         logger.info("Received {} from {}", msg, from);
 
+        ///After the responses of the queried nodes have been received, the nodes contained in the reply
+        //messages are inserted in a list. This list is sorted according to the distance between the new nodes
+        //and the looked up id. Depending on whether the last round of FIND NODE-RPCs revealed a new
+        //closest node or not, different actions are taken. If it has, then the node chooses α nodes among the
+        //k closest already seen but not already queried and sends them FIND NODE-RPCs. Otherwise, it
+        //picks all among the k closest it has not already queried and sends them FIND NODE-RPCs. The
+        //node lookup is terminated when the node has queried all of the k closest nodes it has discovered
+        //and gotten responses from them.
+        //
     }
 
     protected void uponNoLookUpReplyTimer(NoLookUpReplyTimer timer, long timerId) {
