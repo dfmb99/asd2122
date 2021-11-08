@@ -7,6 +7,7 @@ import utils.HashGenerator;
 
 import java.io.IOException;
 import java.math.BigInteger;
+import java.util.Objects;
 
 public class Node {
 
@@ -29,6 +30,19 @@ public class Node {
 
     public Host getHost() {
         return host;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Node)) return false;
+        Node node = (Node) o;
+        return Objects.equals(getHost(), node.getHost());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(getHost());
     }
 
     public static ISerializer<Node> serializer = new ISerializer<Node>() {

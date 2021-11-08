@@ -11,12 +11,16 @@ public class FindNodeMessage extends ProtoMessage {
 
     public final static short MSG_ID = 400;
 
-    BigInteger id;
+    private BigInteger id;
+
     public FindNodeMessage(BigInteger node) {
         super(MSG_ID);
         this.id = node;
     }
 
+    public BigInteger getLookUpId(){
+        return id;
+    }
 
     public String toString() {
         return "FindNodeMessage{" +

@@ -11,34 +11,43 @@ public class FindNodeReplyMessage extends ProtoMessage {
 
     public final static short MSG_ID = 401;
 
-    private Node node;
+    private Node[] closestNodes;
 
-    public FindNodeReplyMessage(Node node) {
+    public FindNodeReplyMessage(Node[] closestNodes) {
         super(MSG_ID);
-        this.node = node;
+        this.closestNodes = closestNodes;
     }
 
-    public Node getNode() {
-        return this.node;
+    public Node[] getClosestNodes() {
+        return this.closestNodes;
     }
 
     @Override
     public String toString() {
-        return "FindNodeMessageReply{" +
-                "node=" + node.toString() +
-                '}';
+        String res = "FindNodeMessageReply{ ";
+        for (Node closestNode : closestNodes) {
+            res = res.concat("node=" + closestNode.toString() + " ");
+        }
+        return res.concat("}");
     }
 
     public static ISerializer<FindNodeReplyMessage> serializer = new ISerializer<>() {
         @Override
         public void serialize(FindNodeReplyMessage sampleMessage, ByteBuf out) throws IOException {
-            Node.serializer.serialize(sampleMessage.node, out);
+            out.writeInt(sampleMessage.getClosestNodes().length);
+            for(Node n: sampleMessage.getClosestNodes()){
+                Node.serializer.serialize(n, out);
+            }
         }
 
         @Override
         public FindNodeReplyMessage deserialize(ByteBuf in) throws IOException {
-            Node node = Node.serializer.deserialize(in);
-            return new FindNodeReplyMessage(node);
+            int size = in.readInt();
+            Node[] closestNodes = new Node[size];
+            for(int i = 0; i < size; i++){
+                closestNodes[i] = Node.serializer.deserialize(in);
+            }
+            return new FindNodeReplyMessage(closestNodes);
         }
     };
 }
