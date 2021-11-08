@@ -15,7 +15,7 @@ public class ChordNode {
     private final Host host;
 
     public ChordNode(Host host) {
-        this.id = ChordKey.of(host.toString());
+        this.id = new ChordKey(host.toString());
         this.host = host;
     }
 
