@@ -43,7 +43,6 @@ public class KademliaProtocol extends BaseProtocol {
     private final long lookUpTimeOut;
 
 
-
     public KademliaProtocol(Properties props, Host self) throws IOException, HandlerRegistrationException {
         super(self, PROTOCOL_NAME, PROTOCOL_ID, logger);
 
@@ -104,34 +103,64 @@ public class KademliaProtocol extends BaseProtocol {
     private void UponFindNodeMessage(FindNodeMessage msg, Host from, short sourceProto, int channelId) {
         logger.info("Received {} from {}", msg, from);
 
-        List<Node> bucket = findBucket(msg.getLookUpId());
+        BigInteger lookUpId = msg.getLookUpId();
+        int idx = findBucketIndex(lookUpId);
+        List<Node> bucket = findBucket(lookUpId);
+        List<Node> closest = new ArrayList<>();
         Node peer = new Node(from);
 
-        if(bucket.contains(peer)){
+        // if bucket contains peers removes from the list and adds it at the end
+        if (bucket.contains(peer)) {
             bucket.remove(peer);
             bucket.add(peer);
         }
-        else{
-            if(bucket.size() < 20){
-                bucket.add(peer);
+
+        // updates bucket with current bucket
+        updateClosestList(lookUpId, bucket, closest);
+
+        int i = 1;
+        while (closest.size() < this.k && ( idx - i >= 0 || idx + i < this.routingTable.size() - 1)) {
+            if (idx - i >= 0) {
+                List<Node> l1 = this.routingTable.get(idx - i);
+                updateClosestList(lookUpId, l1, closest);
             }
-            else{   // bucket if full (size == 20)
-                /**
-                 * TODO:
-                 *  - create ping message
-                 *  - create ping message reply
-                 *  - create a ping timer
-                 *  - create data structure in order to keep running pings
-                 *      to know when to insert a new node to the full bucket
-                 */
+            if (idx + i < this.routingTable.size() - 1) {
+                List<Node> l2 = this.routingTable.get(idx + i);
+                updateClosestList(lookUpId, l2, closest);
+            }
+            i++;
+        }
+        dispatchMessage(new FindNodeReplyMessage(closest.toArray(new Node[0])), from);
+    }
+
+    private void updateClosestList(BigInteger lookUpId, List<Node> bucket, List<Node> closest) {
+        for (Node n : bucket) {
+            if (closest.size() < this.k) {
+                closest.add(n);
+            } else {
+                Node biggestDistNode = getBiggestDistance(lookUpId, closest);
+                BigInteger biggestDist = getDistance(lookUpId, biggestDistNode.getId());
+                BigInteger currDist = getDistance(lookUpId, n.getId());
+                if (currDist.compareTo(biggestDist) < 0) {
+                    closest.remove(biggestDistNode);
+                    closest.add(n);
+                }
             }
         }
+    }
 
-        // TODO: reply with k closest nodes i know
-
-
-
-
+    // returns the node from the list with the biggest distance to id
+    private Node getBiggestDistance(BigInteger id, List<Node> list) {
+        Node biggestDistNode = null;
+        BigInteger maxDist = BigInteger.ZERO;
+        for (Node n : list) {
+            BigInteger curr = getDistance(id, n.getId());
+            if (curr.compareTo(maxDist) > 0) {
+                biggestDistNode = n;
+                maxDist = curr;
+            }
+        }
+        return biggestDistNode;
     }
 
     private void UponFindNodeReplyMessage(FindNodeReplyMessage msg, Host from, short sourceProto, int channelId) {
@@ -151,7 +180,8 @@ public class KademliaProtocol extends BaseProtocol {
     /*----------------------------------- Aux ---------------------------------------- */
 
     /**
-     *  Gets distance between two nodes
+     * Gets distance between two nodes
+     *
      * @param id1 - id of node1
      * @param id2 - id of node2
      */
@@ -161,12 +191,12 @@ public class KademliaProtocol extends BaseProtocol {
 
     private void buildRoutingTable(Properties props) {
         List<Node> kbucket;
-        for(int i = 0; i < BIT_SPACE; i++){
+        for (int i = 0; i < BIT_SPACE; i++) {
             kbucket = new ArrayList<Node>(k);
             routingTable.add(kbucket);
         }
 
-        if(props.containsKey("contact")) {
+        if (props.containsKey("contact")) {
             try {
                 String contact = props.getProperty("contact");
                 String[] hostElems = contact.split(":");
@@ -181,20 +211,20 @@ public class KademliaProtocol extends BaseProtocol {
 
     }
 
-    private List<Node> findBucket(BigInteger id){
+    private List<Node> findBucket(BigInteger id) {
         int idx = findBucketIndex(id);
         return routingTable.get(idx);
     }
 
-    private int findBucketIndex(BigInteger id){
+    private int findBucketIndex(BigInteger id) {
         return (int) Math.floor(Math.log(id.doubleValue()));
     }
 
-    private Node[] findAlfaClosestNodes(BigInteger id){
+    private Node[] findAlfaClosestNodes(BigInteger id) {
         List<Node> bucket = findBucket(id);
         int resSize = Math.min(bucket.size(), alfa);
         Node[] closestNodes = new Node[resSize];
-        for(int i = 0; i < resSize; i++){
+        for (int i = 0; i < resSize; i++) {
             closestNodes[i] = bucket.get(bucket.size() - i - 1);
         }
         return closestNodes;
