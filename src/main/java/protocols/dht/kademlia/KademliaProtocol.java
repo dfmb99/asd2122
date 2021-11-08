@@ -4,7 +4,6 @@ import notifications.ChannelCreated;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import protocols.BaseProtocol;
-import protocols.dht.chord.KeyGenerator;
 import protocols.dht.chord.timers.InfoTimer;
 import protocols.dht.kademlia.Timers.NoLookUpReplyTimer;
 import protocols.dht.kademlia.messages.FindNodeMessage;
