@@ -14,6 +14,7 @@ import pt.unl.fct.di.novasys.babel.exceptions.HandlerRegistrationException;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.channel.tcp.events.*;
 import pt.unl.fct.di.novasys.network.data.Host;
+import utils.HashGenerator;
 
 import java.io.IOException;
 import java.math.BigInteger;
@@ -83,19 +84,19 @@ public class KademliaProtocol extends BaseProtocol {
         if (metricsInterval > 0)
             setupPeriodicTimer(new InfoTimer(), metricsInterval, metricsInterval);
 
-        triggerNotification(new ChannelCreated(channelId));
+        triggerNotification(new ChannelCreated(channel));
     }
 
     public void uponLookupRequest(LookupRequest request, short sourceProto) {
         logger.info("Lookup request for {}", request.getName());
 
-        BigInteger id = KeyGenerator.gen(request.getName(), BIT_SPACE);
+        BigInteger id = HashGenerator.generateHash(request.getName());
         List<Node> bucket = findBucket(id);
         Node[] alfaClosestNodes = findAlfaClosestNodes(id);
         FindNodeMessage msg = new FindNodeMessage(id);
         for (Node alfaClosestNode : alfaClosestNodes) {
             sendMessage(msg, alfaClosestNode.getHost());
-            setupTimer(new NoLookUpReplyTimer(), lookUpTimeOut);
+            //setupTimer(new NoLookUpReplyTimer(), lookUpTimeOut);
         }
 
     }
@@ -136,15 +137,6 @@ public class KademliaProtocol extends BaseProtocol {
     private void UponFindNodeReplyMessage(FindNodeReplyMessage msg, Host from, short sourceProto, int channelId) {
         logger.info("Received {} from {}", msg, from);
 
-        Node peer = new Node(from);
-        boolean known = false;
-        for(Bucket bucket : routingTable){
-            if(bucket.containsNode(peer)){
-                known = true;
-            }
-        }
-
-        if(known == false)
     }
 
     protected void uponNoLookUpReplyTimer(NoLookUpReplyTimer timer, long timerId) {
