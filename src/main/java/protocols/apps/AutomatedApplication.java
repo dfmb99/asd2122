@@ -104,7 +104,8 @@ public class AutomatedApplication extends GenericProtocol {
 
 	private void uponChannelCreated(ChannelCreated notification, short sourceProto) {
 		try {
-			registerChannelEventHandler(notification.getChannelId(), ChannelMetrics.EVENT_ID, this::uponChannelMetrics);
+			registerSharedChannel(notification.channel.id);
+			registerChannelEventHandler(notification.channel.id, ChannelMetrics.EVENT_ID, this::uponChannelMetrics);
 		} catch (HandlerRegistrationException e) {
 			e.printStackTrace();
 		}
@@ -136,7 +137,7 @@ public class AutomatedApplication extends GenericProtocol {
 	private void uponStartTimer(StartTimer startTimer, long timerId) {
 		logger.info("Starting");
 		byte[] content = new byte[this.payloadSize];
-		new Random(this.localIndex* 1000L +this.storedKeys).nextBytes(content);
+		new Random(this.localIndex* 1000L + this.storedKeys).nextBytes(content);
 		StoreRequest request = new StoreRequest(this.myKeys.get(this.storedKeys), content);
 		sendRequest(request, storageProtoId);
 		logger.info("{}: Storing content with name: {} with size {} bytes (requestID {})", self, request.getName(), content.length, request.getRequestId());
@@ -156,7 +157,6 @@ public class AutomatedApplication extends GenericProtocol {
 	private void uponStoreOk(StoreOKReply reply, short sourceProto) {
 		this.storedKeys++;
 		this.storeRequestsCompleted++;
-		logger.info("{}: Store Successful for content with name: {} (requestId {})", self, reply.getName(), reply.getRequestId());
 		if(this.storedKeys >= this.numberContents) {
 			//Start requests periodically
 			requestTimer = setupPeriodicTimer(new RequestTimer(), 0, requestInterval);
@@ -173,12 +173,10 @@ public class AutomatedApplication extends GenericProtocol {
 	}
 	
 	private void uponRetrieveOK(RetrieveOKReply reply, short sourceProto) {
-		logger.info("{}: Retieve successful for content with name: {} with size {} bytes (requestId {})", self, reply.getName(), reply.getContent().length, reply.getRequestId());
 		this.retrieveRequestsSuccessful++;
 	}
 	
 	private void uponRetrieveFailed(RetrieveFailedReply reply, short sourceProto) {
-		logger.info("{}: Retieve failed for content with name: {} bytes (requestId {})", self, reply.getName(), reply.getRequestId());
 		this.retrieveRequestsFailed++;
 	}
 

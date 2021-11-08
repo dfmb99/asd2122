@@ -1,5 +1,6 @@
 package protocols.storage.requests;
 
+import java.util.Arrays;
 import java.util.UUID;
 
 import pt.unl.fct.di.novasys.babel.generic.ProtoRequest;
@@ -31,4 +32,12 @@ public class StoreRequest extends ProtoRequest {
 		return this.content;
 	}
 
+	@Override
+	public String toString() {
+		return "StoreRequest{" +
+				"requestId=" + requestId +
+				", name='" + name + '\'' +
+				", content=" + Arrays.toString(content) +
+				'}';
+	}
 }

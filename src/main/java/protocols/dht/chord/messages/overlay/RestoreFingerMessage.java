@@ -2,6 +2,7 @@ package protocols.dht.chord.messages.overlay;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
+import protocols.dht.chord.types.ChordSegment;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.network.ISerializer;
 import pt.unl.fct.di.novasys.network.data.Host;
@@ -13,23 +14,17 @@ public class RestoreFingerMessage extends ProtoMessage {
 
     public final static short MSG_ID = 206;
 
-    private final int finger;
-    private final BigInteger key;
+    private final ChordSegment segment;
     private final Host host;
 
-    public RestoreFingerMessage(int finger, BigInteger key, Host host) {
+    public RestoreFingerMessage(ChordSegment segment, Host host) {
         super(MSG_ID);
-        this.finger = finger;
-        this.key = key;
+        this.segment = segment;
         this.host = host;
     }
 
-    public int getFinger() {
-        return finger;
-    }
-
-    public BigInteger getKey() {
-        return key;
+    public ChordSegment getSegment() {
+        return segment;
     }
 
     public Host getHost() {
@@ -39,8 +34,7 @@ public class RestoreFingerMessage extends ProtoMessage {
     @Override
     public String toString() {
         return "RestoreFingerMessage{" +
-                "finger=" + finger +
-                ", key=" + key +
+                "segment=" + segment +
                 ", host=" + host +
                 '}';
     }
@@ -48,19 +42,15 @@ public class RestoreFingerMessage extends ProtoMessage {
     public static ISerializer<RestoreFingerMessage> serializer = new ISerializer<>() {
         @Override
         public void serialize(RestoreFingerMessage sampleMessage, ByteBuf out) throws IOException {
-            out.writeInt(sampleMessage.finger);
-            byte[] keyBytes = sampleMessage.key.toByteArray();
-            out.writeInt(keyBytes.length);
-            out.writeBytes(keyBytes);
+            ChordSegment.serializer.serialize(sampleMessage.segment,out);
             Host.serializer.serialize(sampleMessage.host, out);
         }
 
         @Override
         public RestoreFingerMessage deserialize(ByteBuf in) throws IOException {
-            int finger = in.readInt();
-            BigInteger key = new BigInteger(ByteBufUtil.getBytes(in.readBytes(in.readInt())));
+            ChordSegment segment = ChordSegment.serializer.deserialize(in);
             Host host = Host.serializer.deserialize(in);
-            return new RestoreFingerMessage(finger, key, host);
+            return new RestoreFingerMessage(segment, host);
         }
     };
 }

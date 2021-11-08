@@ -10,17 +10,33 @@ public class Ring {
         this.ringSize = ringSize;
     }
 
-    public boolean InBounds(BigInteger value, BigInteger lowerBound, BigInteger upperBound) {
-        if(lowerBound.compareTo(upperBound) == 0) {
+
+
+    public boolean inBounds(ChordKey key, ChordKey lowerBound, ChordKey upperBound) {
+        int ul = upperBound.compareTo(lowerBound);
+        if(ul == 0) {
             return true;
         }
-        else if(upperBound.compareTo(lowerBound) < 0) {
-            if(value.compareTo(upperBound) <= 0)
-                value = value.add(ringSize);
-            return value.compareTo(lowerBound) >= 0 && value.compareTo(upperBound.add(ringSize)) <= 0;
+        if(ul < 0) {
+            if(key.compareTo(upperBound) <= 0)
+                key = key.getKeyAfterRingLoop(ringSize);
+            upperBound = upperBound.getKeyAfterRingLoop(ringSize);
         }
-        else {
-            return value.compareTo(lowerBound) >= 0 && value.compareTo(upperBound) <= 0;
-        }
+
+        return key.compareTo(lowerBound) > 0 && key.compareTo(upperBound) <= 0;
+    }
+
+
+
+    public boolean inBounds(ChordNode node, ChordNode lowerBound, ChordNode upperBound) {
+        return inBounds(node.getId(), lowerBound.getId(), upperBound.getId());
+    }
+
+    public boolean inBounds(ChordKey key, ChordNode lowerBound, ChordNode upperBound) {
+        return inBounds(key, lowerBound.getId(), upperBound.getId());
+    }
+
+    public boolean inBounds(ChordSegment segment, ChordNode lowerBound, ChordNode upperBound) {
+        return inBounds(ChordKey.of(segment), lowerBound.getId(), upperBound.getId());
     }
 }

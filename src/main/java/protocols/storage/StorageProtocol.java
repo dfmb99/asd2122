@@ -19,6 +19,7 @@ import protocols.storage.requests.StoreRequest;
 import pt.unl.fct.di.novasys.babel.exceptions.HandlerRegistrationException;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.babel.generic.ProtoRequest;
+import pt.unl.fct.di.novasys.channel.tcp.events.*;
 import pt.unl.fct.di.novasys.network.data.Host;
 
 import java.io.IOException;
@@ -41,11 +42,10 @@ public class StorageProtocol extends BaseProtocol {
     public boolean ready;
 
     public StorageProtocol(Properties props, Host self, short dhtProtoId) throws IOException, HandlerRegistrationException {
-        super(props, self, PROTOCOL_NAME, PROTOCOL_ID, logger, false);
+        super(self, PROTOCOL_NAME, PROTOCOL_ID, logger);
+
         this.dhtProtoId = dhtProtoId;
-
         this.pendingRequests = new ConcurrentHashMap<>();
-
         this.storage = new VolatileStorage();
 
         /*--------------------- Register Request Handlers ----------------------------- */
@@ -62,28 +62,34 @@ public class StorageProtocol extends BaseProtocol {
     }
 
     private void uponChannelCreated(ChannelCreated notification, short sourceProto) {
-        this.channelId = notification.getChannelId();
-
         try {
+            setChannel(notification.channel);
+
             /*---------------------- Register Channel Events ------------------------------ */
-            registerChannelEvents();
+            registerChannelEventHandler(channel.id, OutConnectionDown.EVENT_ID, this::uponOutConnectionDown);
+            registerChannelEventHandler(channel.id, OutConnectionFailed.EVENT_ID, this::uponOutConnectionFailed);
+            registerChannelEventHandler(channel.id, OutConnectionUp.EVENT_ID, this::uponOutConnectionUp);
+            registerChannelEventHandler(channel.id, InConnectionUp.EVENT_ID, this::uponInConnectionUp);
+            registerChannelEventHandler(channel.id, InConnectionDown.EVENT_ID, this::uponInConnectionDown);
+
             /*---------------------- Register Message Handlers -------------------------- */
-            registerMessageHandler(channelId, RetrieveContentMessage.MSG_ID, this::uponRetrieveContentMessage, this::uponMessageFail);
-            registerMessageHandler(channelId, RetrieveContentReplyMessage.MSG_ID, this::uponRetrieveContentReplyMessage, this::uponMessageFail);
-            registerMessageHandler(channelId, StoreContentMessage.MSG_ID, this::uponStoreContentMessage, this::uponMessageFail);
-            registerMessageHandler(channelId, StoreContentReplyMessage.MSG_ID, this::uponStoreContentReplyMessage, this::uponMessageFail);
+            registerMessageHandler(channel.id, RetrieveContentMessage.MSG_ID, this::uponRetrieveContentMessage, this::uponMessageFail);
+            registerMessageHandler(channel.id, RetrieveContentReplyMessage.MSG_ID, this::uponRetrieveContentReplyMessage, this::uponMessageFail);
+            registerMessageHandler(channel.id, StoreContentMessage.MSG_ID, this::uponStoreContentMessage, this::uponMessageFail);
+            registerMessageHandler(channel.id, StoreContentReplyMessage.MSG_ID, this::uponStoreContentReplyMessage, this::uponMessageFail);
+
+            /*---------------------- Register Message Serializers ---------------------- */
+            registerMessageSerializer(channel.id, RetrieveContentMessage.MSG_ID, RetrieveContentMessage.serializer);
+            registerMessageSerializer(channel.id, RetrieveContentReplyMessage.MSG_ID, RetrieveContentReplyMessage.serializer);
+            registerMessageSerializer(channel.id, StoreContentMessage.MSG_ID, StoreContentMessage.serializer);
+            registerMessageSerializer(channel.id, StoreContentReplyMessage.MSG_ID, StoreContentReplyMessage.serializer);
+
+            ready = true;
         } catch (Exception e) {
             logger.error("Error registering message handler: " + e.getMessage());
             e.printStackTrace();
             System.exit(1);
         }
-
-        /*---------------------- Register Message Serializers ---------------------- */
-        registerMessageSerializer(channelId, StoreContentMessage.MSG_ID, StoreContentMessage.serializer);
-        registerMessageSerializer(channelId, RetrieveContentMessage.MSG_ID, RetrieveContentMessage.serializer);
-        registerMessageSerializer(channelId, RetrieveContentReplyMessage.MSG_ID, RetrieveContentReplyMessage.serializer);
-
-        ready = true;
     }
 
     @Override
@@ -92,6 +98,7 @@ public class StorageProtocol extends BaseProtocol {
     /*----------------------------------- Requests Handler---------------------------------- */
 
     private void uponStoreRequest(StoreRequest request, short sourceProto) {
+        logger.info("Received request {}", request);
         LookupRequest lookupRequest = new LookupRequest(
                 request.getRequestId(), request.getName()
         );
@@ -100,6 +107,7 @@ public class StorageProtocol extends BaseProtocol {
     }
 
     private void uponRetrieveRequest(RetrieveRequest request, short sourceProto) {
+        logger.info("Received request {}", request);
         LookupRequest lookupRequest = new LookupRequest(
                 request.getRequestId(), request.getName()
         );
@@ -116,6 +124,7 @@ public class StorageProtocol extends BaseProtocol {
             StoreRequest storeRequest = (StoreRequest) request;
             if(result.getNode().getHost().equals(self)) {
                 storage.put(storeRequest.getName(), storeRequest.getContent());
+                logger.info("Stored content {} in myself", storeRequest.getName());
                 sendReply(new StoreOKReply(storeRequest.getRequestId(), storeRequest.getName()), AutomatedApplication.PROTO_ID);
             }
             else dispatchMessage(new StoreContentMessage(result.getRequestId(), storeRequest.getName(), storeRequest.getContent()), result.getNode().getHost());
@@ -126,10 +135,14 @@ public class StorageProtocol extends BaseProtocol {
             RetrieveRequest retrieveRequest = (RetrieveRequest) request;
             if(result.getNode().getHost().equals(self)) {
                 byte[] content = storage.get(retrieveRequest.getName());
-                if(content != null)
+                if(content != null) {
+                    logger.info("Failed to retrieved content {} from myself", retrieveRequest.getName());
                     sendReply(new RetrieveOKReply(retrieveRequest.getRequestId(), retrieveRequest.getName(), content), AutomatedApplication.PROTO_ID);
-                else
+                }
+                else {
+                    logger.info("Retrieved content {} from myself", retrieveRequest.getName());
                     sendReply(new RetrieveFailedReply(retrieveRequest.getRequestId(), retrieveRequest.getName()), AutomatedApplication.PROTO_ID);
+                }
             }
             else dispatchMessage(new RetrieveContentMessage(result.getRequestId(), retrieveRequest.getName()), result.getNode().getHost());
         }
@@ -145,21 +158,26 @@ public class StorageProtocol extends BaseProtocol {
 
     private void uponStoreContentReplyMessage(StoreContentReplyMessage msg, Host from, short sourceProto, int channelId) {
         logger.info("Received {} from {}", msg, from);
+        logger.info("Stored content {} in {}", msg.getName(), from);
         sendReply(new StoreOKReply(msg.getRequestId(), msg.getName()), AutomatedApplication.PROTO_ID);
     }
 
     private void uponRetrieveContentMessage(RetrieveContentMessage msg, Host from, short sourceProto, int channelId) {
         logger.info("Received {} from {}", msg, from);
         byte[] content = storage.get(msg.getName());
-        dispatchMessage(new RetrieveContentReplyMessage(msg.getRequestId(), msg.getName(), content), from);
+        dispatchMessage(new RetrieveContentReplyMessage(msg.getRequestId(), msg.getName(), content == null, content), from);
     }
 
     private void uponRetrieveContentReplyMessage(RetrieveContentReplyMessage msg, Host from, short sourceProto, int channelId) {
         logger.info("Received {} from {}", msg, from);
-        if(msg.getContent() != null)
+        if(!msg.isNotFound()) {
+            logger.info("Retrieved content {} from {}", msg.getName(), from);
             sendReply(new RetrieveOKReply(msg.getRequestId(), msg.getName(), msg.getContent()), AutomatedApplication.PROTO_ID);
-        else
+        }
+        else {
+            logger.info("Failed to retrieved content {} from {}", msg.getName(), from);
             sendReply(new RetrieveFailedReply(msg.getRequestId(), msg.getName()), AutomatedApplication.PROTO_ID);
+        }
     }
 
     /*---------------------------------------- Debug ---------------------------------- */

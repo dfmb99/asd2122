@@ -13,6 +13,7 @@ import protocols.dht.kademlia.types.Node;
 import protocols.dht.requests.LookupRequest;
 import pt.unl.fct.di.novasys.babel.exceptions.HandlerRegistrationException;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
+import pt.unl.fct.di.novasys.channel.tcp.events.*;
 import pt.unl.fct.di.novasys.network.data.Host;
 
 import java.io.IOException;
@@ -44,7 +45,7 @@ public class KademliaProtocol extends BaseProtocol {
 
 
     public KademliaProtocol(Properties props, Host self) throws IOException, HandlerRegistrationException {
-        super(props, self, PROTOCOL_NAME, PROTOCOL_ID, logger, true);
+        super(self, PROTOCOL_NAME, PROTOCOL_ID, logger);
 
         this.k = Integer.parseInt(props.getProperty("k_value"));
         this.alfa = Integer.parseInt(props.getProperty("alfa_value"));
@@ -54,17 +55,23 @@ public class KademliaProtocol extends BaseProtocol {
         this.currentLookups = new HashMap<>();
         this.lookupOperations = new HashMap<>();
 
+        /*------------------------- Create TCP Channel -------------------------------- */
+        createChannel(props);
+
         /*---------------------- Register Channel Events ------------------------------ */
-        registerChannelEvents();
+        registerChannelEventHandler(channel.id, OutConnectionDown.EVENT_ID, this::uponOutConnectionDown);
+        registerChannelEventHandler(channel.id, OutConnectionFailed.EVENT_ID, this::uponOutConnectionFailed);
+        registerChannelEventHandler(channel.id, OutConnectionUp.EVENT_ID, this::uponOutConnectionUp);
+        registerChannelEventHandler(channel.id, InConnectionUp.EVENT_ID, this::uponInConnectionUp);
+        registerChannelEventHandler(channel.id, InConnectionDown.EVENT_ID, this::uponInConnectionDown);
 
         /*--------------------- Register Request Handlers ----------------------------- */
         registerRequestHandler(LookupRequest.REQUEST_TYPE_ID, this::uponLookupRequest);
 
         /*---------------------- Register Message Handlers -------------------------- */
-        registerMessageHandler(channelId, FindNodeMessage.MSG_ID, this::UponFindNodeMessage, this::uponMessageFail);
-        registerMessageHandler(channelId, FindNodeReplyMessage.MSG_ID, this::UponFindNodeReplyMessage, this::uponMessageFail);
+        registerMessageHandler(channel.id, FindNodeMessage.MSG_ID, this::UponFindNodeMessage, this::uponMessageFail);
+        registerMessageHandler(channel.id, FindNodeReplyMessage.MSG_ID, this::UponFindNodeReplyMessage, this::uponMessageFail);
 
-        /*---------------------- Register Timer Handlers -------------------------- */
         registerTimerHandler(NoLookUpReplyTimer.TIMER_ID, this::uponNoLookUpReplyTimer);
         this.lookUpTimeOut = Integer.parseInt(props.getProperty("find_node_timeout"));
     }
