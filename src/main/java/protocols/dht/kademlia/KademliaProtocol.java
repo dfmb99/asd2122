@@ -7,6 +7,7 @@ import protocols.BaseProtocol;
 import protocols.dht.chord.timers.InfoTimer;
 import protocols.dht.kademlia.messages.FindNodeMessage;
 import protocols.dht.kademlia.messages.FindNodeReplyMessage;
+import protocols.dht.kademlia.types.KademliaNode;
 import protocols.dht.kademlia.types.Node;
 import protocols.dht.requests.LookupRequest;
 import pt.unl.fct.di.novasys.babel.exceptions.HandlerRegistrationException;
@@ -31,14 +32,16 @@ public class KademliaProtocol extends BaseProtocol {
 
     private final int k;
     private final int alfa;
+    private final int beta;
 
     private final Node self;
     private final List<List<Node>> routingTable;
 
 
-    private final Map<BigInteger, Integer> lookupOperations;    // k-id we are trying to find, v-uniqueId
-    private final Map<Integer, List<Node>> currentQueries;      // map of current alfa nodes we are waiting for a findNodeReply
-    private final Map<Integer, List<Node>> finishedQueries;     // map of queries already performed
+    private final Map<BigInteger, SortedSet<KademliaNode>> currentQueries;      // map of current alfa nodes we are waiting for a findNodeReply
+    private final Map<BigInteger, SortedSet<KademliaNode>> finishedQueries;     // map of queries already performed
+    private final Map<BigInteger, SortedSet<KademliaNode>>  currentClosestK;     // map of current list of closest k nodes
+
 
 
 
@@ -48,12 +51,14 @@ public class KademliaProtocol extends BaseProtocol {
 
         this.k = Integer.parseInt(props.getProperty("k_value"));
         this.alfa = Integer.parseInt(props.getProperty("alfa_value"));
+        this.beta = Integer.parseInt(props.getProperty("beta_value"));
 
         this.self = new Node(self);
         this.routingTable = new ArrayList<>(BIT_SPACE);
-        this.lookupOperations = new HashMap<>();
-        this.currentQueries = new HashMap<>();
-        this.finishedQueries = new HashMap<>();
+
+        this.currentQueries     = new HashMap<>();
+        this.finishedQueries    = new HashMap<>();
+        this.currentClosestK    = new HashMap<>();
 
         /*------------------------- Create TCP Channel -------------------------------- */
         createChannel(props);
@@ -85,15 +90,24 @@ public class KademliaProtocol extends BaseProtocol {
         triggerNotification(new ChannelCreated(channel));
     }
 
+
     public void uponLookupRequest(LookupRequest request, short sourceProto) {
         logger.info("Lookup request for {}", request.getName());
 
         BigInteger id = HashGenerator.generateHash(request.getName());
-        List<Node> bucket = findBucket(id);
-        Node[] alfaClosestNodes = findAlfaClosestNodes(id);
+        if(currentQueries.get(id) != null)  // If we are already performing a lookup for that id
+            return;                         // we do nothing here
+
+        currentClosestK.put(id, findKClosestNodes(id));
+        currentQueries.put(id, new HashSet<KademliaNode>());
+        finishedQueries.put(id, new HashSet<KademliaNode>());
+
         FindNodeMessage msg = new FindNodeMessage(id);
-        for (Node alfaClosestNode : alfaClosestNodes) {
-            dispatchMessage(msg, alfaClosestNode.getHost());
+        Iterator<KademliaNode> it = currentClosestK.get(id).spliterator();
+        for(int i = 0; (i < alfa) && it.hasNext(); i++){  // accounts for case where we don't have k nodes in our kbuckets
+            KademliaNode recipient = it.next();
+            dispatchMessage(msg, recipient.getHost());
+            currentQueries.get(id, recipient);
         }
 
     }
@@ -168,10 +182,6 @@ public class KademliaProtocol extends BaseProtocol {
 
     private void UponFindNodeReplyMessage(FindNodeReplyMessage msg, Host from, short sourceProto, int channelId) {
         logger.info("Received {} from {}", msg, from);
-
-    }
-
-    protected void uponNoLookUpReplyTimer(NoLookUpReplyTimer timer, long timerId) {
 
     }
 
