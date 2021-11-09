@@ -5,7 +5,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import protocols.BaseProtocol;
 import protocols.dht.chord.timers.InfoTimer;
-import protocols.dht.kademlia.Timers.NoLookUpReplyTimer;
 import protocols.dht.kademlia.messages.FindNodeMessage;
 import protocols.dht.kademlia.messages.FindNodeReplyMessage;
 import protocols.dht.kademlia.types.Node;
@@ -37,10 +36,10 @@ public class KademliaProtocol extends BaseProtocol {
     private final List<List<Node>> routingTable;
 
 
-    private final Map<Integer, List<Node>> currentLookups;  // map of nodes involved in the lookup process atm (waiting for a findNodeReply)
-    private final Map<BigInteger, Integer> lookupOperations;  // k-id we are trying to find, v-uniqueId
+    private final Map<BigInteger, Integer> lookupOperations;    // k-id we are trying to find, v-uniqueId
+    private final Map<Integer, List<Node>> currentQueries;      // map of current alfa nodes we are waiting for a findNodeReply
+    private final Map<Integer, List<Node>> finishedQueries;     // map of queries already performed
 
-    private final long lookUpTimeOut;
 
 
 
@@ -52,8 +51,9 @@ public class KademliaProtocol extends BaseProtocol {
 
         this.self = new Node(self);
         this.routingTable = new ArrayList<>(BIT_SPACE);
-        this.currentLookups = new HashMap<>();
         this.lookupOperations = new HashMap<>();
+        this.currentQueries = new HashMap<>();
+        this.finishedQueries = new HashMap<>();
 
         /*------------------------- Create TCP Channel -------------------------------- */
         createChannel(props);
@@ -72,8 +72,6 @@ public class KademliaProtocol extends BaseProtocol {
         registerMessageHandler(channel.id, FindNodeMessage.MSG_ID, this::UponFindNodeMessage, this::uponMessageFail);
         registerMessageHandler(channel.id, FindNodeReplyMessage.MSG_ID, this::UponFindNodeReplyMessage, this::uponMessageFail);
 
-        registerTimerHandler(NoLookUpReplyTimer.TIMER_ID, this::uponNoLookUpReplyTimer);
-        this.lookUpTimeOut = Integer.parseInt(props.getProperty("find_node_timeout"));
     }
 
     @Override
@@ -95,8 +93,7 @@ public class KademliaProtocol extends BaseProtocol {
         Node[] alfaClosestNodes = findAlfaClosestNodes(id);
         FindNodeMessage msg = new FindNodeMessage(id);
         for (Node alfaClosestNode : alfaClosestNodes) {
-            sendMessage(msg, alfaClosestNode.getHost());
-            //setupTimer(new NoLookUpReplyTimer(), lookUpTimeOut);
+            dispatchMessage(msg, alfaClosestNode.getHost());
         }
 
     }
@@ -139,9 +136,6 @@ public class KademliaProtocol extends BaseProtocol {
 
     }
 
-    protected void uponNoLookUpReplyTimer(NoLookUpReplyTimer timer, long timerId) {
-
-    }
 
     protected void uponMessageFail(ProtoMessage msg, Host host, short destProto, Throwable throwable, int channelId) {
         logger.error("Message {} to {} failed, reason: {}", msg, host, throwable);
@@ -149,15 +143,6 @@ public class KademliaProtocol extends BaseProtocol {
 
 
     /*----------------------------------- Aux ---------------------------------------- */
-
-    /**
-     *  Gets distance between two nodes
-     * @param id1 - id of node1
-     * @param id2 - id of node2
-     */
-    private BigInteger getDistance(BigInteger id1, BigInteger id2) {
-        return id1.xor(id2);
-    }
 
     private void buildRoutingTable(Properties props) {
         List<Node> kbucket;
@@ -190,14 +175,50 @@ public class KademliaProtocol extends BaseProtocol {
         return (int) Math.floor(Math.log(id.doubleValue()));
     }
 
-    private Node[] findAlfaClosestNodes(BigInteger id){
+    private Node[] findAlfaClosestNodes(BigInteger id){ // TODO: debug, check if behaves properly
         List<Node> bucket = findBucket(id);
         int resSize = Math.min(bucket.size(), alfa);
+        List<Node> alreadyContainedNodes = new LinkedList<>();
+
+
+        Node closest = null;
+        BigInteger closestDist = null;
+        for(int i = 0; i < resSize; i++){               // Go over the bucket alfa (or bucket.size if bucket.size < alfa) times
+            for(int j = 0; j < bucket.size(); j++){     // Store the closest node that we don't already have at each cicle
+                Node current = bucket.get(j);
+                if(j == 0){ // initialize closest and closestDist
+                    for(int k = 0; k < alfa; k++){
+                        Node curr = bucket.get(k);
+                        if (!alreadyContainedNodes.contains(curr)) {
+                            closest = curr;
+                            closestDist = getDistance(id, curr.getId());
+                            break;
+                        }
+                    }
+                }
+                BigInteger dist = getDistance(current.getId(), id);
+                if( ( dist.compareTo(closestDist) < 0 ) && ( !alreadyContainedNodes.contains(closest) ) ){
+                    closest = current;
+                    closestDist = dist;
+                }
+            }
+            alreadyContainedNodes.add(closest);
+        }
+
         Node[] closestNodes = new Node[resSize];
         for(int i = 0; i < resSize; i++){
-            closestNodes[i] = bucket.get(bucket.size() - i - 1);
+            closestNodes[i] = alreadyContainedNodes.get(i);
         }
         return closestNodes;
+    }
+
+    /**
+     *  Gets distance between two nodes
+     * @param id1 - id of node1
+     * @param id2 - id of node2
+     */
+    private BigInteger getDistance(BigInteger id1, BigInteger id2) {
+        return id1.xor(id2);
     }
 
 }
