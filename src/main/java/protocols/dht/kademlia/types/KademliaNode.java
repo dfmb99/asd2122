@@ -1,19 +1,37 @@
 package protocols.dht.kademlia.types;
 
+import io.netty.buffer.ByteBuf;
+import pt.unl.fct.di.novasys.network.ISerializer;
 import pt.unl.fct.di.novasys.network.data.Host;
 
+import java.io.IOException;
 import java.math.BigInteger;
 
+
+/**
+ * This class is used to maintain nodes ordered in the sets.
+ * The metric used to order the set is the distance to a certain id, which is the id being looked for
+ */
 public class KademliaNode extends Node implements Comparable<KademliaNode>{
 
     private final BigInteger distance;    // xor distance to the id we are searching for
 
+    /**
+     * This constructor calculates a xor distance to the received id
+     * @param host - node's contact information
+     * @param idToCompare - id to use in the distance calculation
+     */
     public KademliaNode(Host host, BigInteger idToCompare) {
         super(host);
-        this.distance = calcDistance(idToCompare);
+        this.distance = calcXorDistance(idToCompare);
     }
 
-    private BigInteger calcDistance(BigInteger idToCompare) {
+    public KademliaNode(BigInteger distance, Host host){
+        super(host);
+        this.distance = distance;
+    }
+
+    private BigInteger calcXorDistance(BigInteger idToCompare) {
         return this.getId().xor(idToCompare);
     }
 
@@ -25,4 +43,20 @@ public class KademliaNode extends Node implements Comparable<KademliaNode>{
     public int compareTo(KademliaNode other) {
         return this.distance.compareTo(other.getDistance());
     }
+
+    public static ISerializer<KademliaNode> serializer = new ISerializer<KademliaNode>() {
+        public void serialize(KademliaNode node, ByteBuf out) throws IOException {
+            Host.serializer.serialize(node.getHost(), out);
+            byte[] distBytes = node.getDistance().toByteArray();
+            out.writeInt(distBytes.length);
+            out.writeBytes(distBytes);
+        }
+
+        public KademliaNode deserialize(ByteBuf in) throws IOException {
+            Host host = Host.serializer.deserialize(in);
+            BigInteger distance = new BigInteger(in.readBytes(in.readInt()).array());
+            return new KademliaNode(distance, host);
+        }
+    };
+
 }

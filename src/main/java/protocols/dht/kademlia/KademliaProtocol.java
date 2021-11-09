@@ -38,9 +38,10 @@ public class KademliaProtocol extends BaseProtocol {
     private final List<List<Node>> routingTable;
 
 
-    private final Map<BigInteger, SortedSet<KademliaNode>> currentQueries;      // map of current alfa nodes we are waiting for a findNodeReply
-    private final Map<BigInteger, SortedSet<KademliaNode>> finishedQueries;     // map of queries already performed
+    private final Map<BigInteger, Set<Host>> currentQueries;      // map of current alfa nodes we are waiting for a findNodeReply
+    private final Map<BigInteger, Set<Host>> finishedQueries;     // map of queries already performed
     private final Map<BigInteger, SortedSet<KademliaNode>>  currentClosestK;     // map of current list of closest k nodes
+    private final Map<BigInteger, Integer> receivedReplies; // keeps track of the number of received replies to know if we already got beta replies
 
 
 
@@ -59,6 +60,7 @@ public class KademliaProtocol extends BaseProtocol {
         this.currentQueries     = new HashMap<>();
         this.finishedQueries    = new HashMap<>();
         this.currentClosestK    = new HashMap<>();
+        this.receivedReplies    = new HashMap<>();
 
         /*------------------------- Create TCP Channel -------------------------------- */
         createChannel(props);
@@ -99,16 +101,17 @@ public class KademliaProtocol extends BaseProtocol {
             return;                         // we do nothing here
 
         currentClosestK.put(id, findKClosestNodes(id));
-        currentQueries.put(id, new TreeSet<KademliaNode>());
-        finishedQueries.put(id, new TreeSet<KademliaNode>());
+        currentQueries.put(id, new TreeSet<Host>());
+        finishedQueries.put(id, new TreeSet<Host>());
+        receivedReplies.put(id, 0);
 
         FindNodeMessage msg = new FindNodeMessage(id);
         Iterator<KademliaNode> it = currentClosestK.get(id).iterator();
         for(int i = 0; (i < alfa) && it.hasNext(); i++){  // accounts for case where we don't have k nodes in our kbuckets
             KademliaNode recipient = it.next();
             dispatchMessage(msg, recipient.getHost());
-            SortedSet<KademliaNode> currQueries = currentQueries.get(id);
-            currQueries.add(recipient);
+            Set<Host> currQueries = currentQueries.get(id);
+            currQueries.add(recipient.getHost());
         }
 
     }
@@ -117,19 +120,131 @@ public class KademliaProtocol extends BaseProtocol {
         logger.info("Received {} from {}", msg, from);
 
         BigInteger lookUpId = msg.getLookUpId();
-        int idx = findBucketIndex(lookUpId);
-        List<Node> bucket = findBucket(lookUpId);
-        Node peer = new Node(from);
+        SortedSet<KademliaNode> closestK = findKClosestNodes(lookUpId); // TODO: create findKClosestNodes()
 
-        // if bucket contains peers removes from the list and adds it at the end
-        if (bucket.contains(peer)) {
-            bucket.remove(peer);
-            bucket.add(peer);
+        // TODO: take care of updating our kbuckets. Includes sending and receiving a ping message
+
+        dispatchMessage(new FindNodeReplyMessage(lookUpId, closestK), from);
+    }
+
+
+    private void UponFindNodeReplyMessage(FindNodeReplyMessage msg, Host from, short sourceProto, int channelId) {
+        logger.info("Received {} from {}", msg, from);
+
+        BigInteger id = msg.getLookupId();
+        SortedSet<KademliaNode> peerClosestK = msg.getClosestNodes();
+
+        if(currentClosestK.get(id) == null)    // reply relative to a lookUp req. already terminated
+            return;
+
+        Integer totalReceivedReplies = receivedReplies.get(id);
+        totalReceivedReplies++;
+
+        Set<Host> currentQueries = this.currentQueries.get(id);
+        currentQueries.remove(from);
+
+        Set<Host> finishedQueries = this.finishedQueries.get(id);
+        finishedQueries.add(from);
+
+        SortedSet<KademliaNode> currentClosestK = this.currentClosestK.get(id);
+        boolean closestKChanged = currentClosestK.addAll(peerClosestK);
+
+        if(totalReceivedReplies % beta == 0){
+            if(!closestKChanged){
+                //sendReply(); TODO: finish sending the reply to the StorageProtocol
+            }
+            // TODO: reduzir o set a k elementos de novo
         }
 
-        List<Node> closest = getClosestList(lookUpId, bucket, idx);
-        dispatchMessage(new FindNodeReplyMessage(closest.toArray(new Node[0])), from);
+        // TODO: lancar nova mensagem para outro no do closestK, que ainda nao tenha sido queried
+
+        // TODO: take care of updating routing tables ?
+
     }
+
+    protected void uponMessageFail(ProtoMessage msg, Host host, short destProto, Throwable throwable, int channelId) {
+        logger.error("Message {} to {} failed, reason: {}", msg, host, throwable);
+    }
+
+
+    /*----------------------------------- Aux ---------------------------------------- */
+
+    private void buildRoutingTable(Properties props) {
+        List<Node> kbucket;
+        for (int i = 0; i < BIT_SPACE; i++) {
+            kbucket = new ArrayList<Node>(k);
+            routingTable.add(kbucket);
+        }
+
+        if (props.containsKey("contact")) {
+            try {
+                String contact = props.getProperty("contact");
+                String[] hostElems = contact.split(":");
+                Node contactNode = new Node(new Host(InetAddress.getByName(hostElems[0]), Integer.parseInt(hostElems[1])));
+                dispatchMessage(new FindNodeMessage(self.getId()), contactNode.getHost());
+            } catch (Exception e) {
+                logger.error("Invalid contact on configuration: '" + props.getProperty("contact"));
+                e.printStackTrace();
+                System.exit(-1);
+            }
+        }
+
+    }
+
+    private List<Node> findBucket(BigInteger id) {
+        int idx = findBucketIndex(id);
+        return routingTable.get(idx);
+    }
+    private int findBucketIndex(BigInteger id) {
+        return (int) Math.floor(Math.log(id.doubleValue()));
+    }
+
+    private Node[] findAlfaClosestNodes(BigInteger id) {
+        List<Node> bucket = findBucket(id);
+        int resSize = Math.min(bucket.size(), alfa);
+        List<Node> alreadyContainedNodes = new LinkedList<>();
+
+
+        Node closest = null;
+        BigInteger closestDist = null;
+        for(int i = 0; i < resSize; i++){               // Go over the bucket alfa (or bucket.size if bucket.size < alfa) times
+            for(int j = 0; j < bucket.size(); j++){     // Store the closest node that we don't already have at each cicle
+                Node current = bucket.get(j);
+                if(j == 0){ // initialize closest and closestDist
+                    for(int k = 0; k < alfa; k++){
+                        Node curr = bucket.get(k);
+                        if (!alreadyContainedNodes.contains(curr)) {
+                            closest = curr;
+                            closestDist = getDistance(id, curr.getId());
+                            break;
+                        }
+                    }
+                }
+                BigInteger dist = getDistance(current.getId(), id);
+                if( ( dist.compareTo(closestDist) < 0 ) && ( !alreadyContainedNodes.contains(closest) ) ){
+                    closest = current;
+                    closestDist = dist;
+                }
+            }
+            alreadyContainedNodes.add(closest);
+        }
+
+        Node[] closestNodes = new Node[resSize];
+        for(int i = 0; i < resSize; i++){
+            closestNodes[i] = alreadyContainedNodes.get(i);
+        }
+        return closestNodes;
+    }
+
+    /**
+     *  Gets distance between two nodes
+     * @param id1 - id of node1
+     * @param id2 - id of node2
+     */
+    private BigInteger getDistance(BigInteger id1, BigInteger id2) {
+        return id1.xor(id2);
+    }
+
 
     private List<Node> getClosestList(BigInteger lookUpId, List<Node> bucket, int idx) {
         List<Node> closest = new ArrayList<>();
@@ -179,95 +294,6 @@ public class KademliaProtocol extends BaseProtocol {
             }
         }
         return biggestDistNode;
-    }
-
-    private void UponFindNodeReplyMessage(FindNodeReplyMessage msg, Host from, short sourceProto, int channelId) {
-        logger.info("Received {} from {}", msg, from);
-
-    }
-
-    protected void uponMessageFail(ProtoMessage msg, Host host, short destProto, Throwable throwable, int channelId) {
-        logger.error("Message {} to {} failed, reason: {}", msg, host, throwable);
-    }
-
-
-    /*----------------------------------- Aux ---------------------------------------- */
-
-    private void buildRoutingTable(Properties props) {
-        List<Node> kbucket;
-        for (int i = 0; i < BIT_SPACE; i++) {
-            kbucket = new ArrayList<Node>(k);
-            routingTable.add(kbucket);
-        }
-
-        if (props.containsKey("contact")) {
-            try {
-                String contact = props.getProperty("contact");
-                String[] hostElems = contact.split(":");
-                Node contactNode = new Node(new Host(InetAddress.getByName(hostElems[0]), Integer.parseInt(hostElems[1])));
-                dispatchMessage(new FindNodeMessage(self.getId()), contactNode.getHost());
-            } catch (Exception e) {
-                logger.error("Invalid contact on configuration: '" + props.getProperty("contact"));
-                e.printStackTrace();
-                System.exit(-1);
-            }
-        }
-
-    }
-
-    private List<Node> findBucket(BigInteger id) {
-        int idx = findBucketIndex(id);
-        return routingTable.get(idx);
-    }
-
-    private int findBucketIndex(BigInteger id) {
-        return (int) Math.floor(Math.log(id.doubleValue()));
-    }
-
-    private Node[] findAlfaClosestNodes(BigInteger id) { // TODO: debug, check if behaves properly
-        List<Node> bucket = findBucket(id);
-        int resSize = Math.min(bucket.size(), alfa);
-        List<Node> alreadyContainedNodes = new LinkedList<>();
-
-
-        Node closest = null;
-        BigInteger closestDist = null;
-        for(int i = 0; i < resSize; i++){               // Go over the bucket alfa (or bucket.size if bucket.size < alfa) times
-            for(int j = 0; j < bucket.size(); j++){     // Store the closest node that we don't already have at each cicle
-                Node current = bucket.get(j);
-                if(j == 0){ // initialize closest and closestDist
-                    for(int k = 0; k < alfa; k++){
-                        Node curr = bucket.get(k);
-                        if (!alreadyContainedNodes.contains(curr)) {
-                            closest = curr;
-                            closestDist = getDistance(id, curr.getId());
-                            break;
-                        }
-                    }
-                }
-                BigInteger dist = getDistance(current.getId(), id);
-                if( ( dist.compareTo(closestDist) < 0 ) && ( !alreadyContainedNodes.contains(closest) ) ){
-                    closest = current;
-                    closestDist = dist;
-                }
-            }
-            alreadyContainedNodes.add(closest);
-        }
-
-        Node[] closestNodes = new Node[resSize];
-        for(int i = 0; i < resSize; i++){
-            closestNodes[i] = alreadyContainedNodes.get(i);
-        }
-        return closestNodes;
-    }
-
-    /**
-     *  Gets distance between two nodes
-     * @param id1 - id of node1
-     * @param id2 - id of node2
-     */
-    private BigInteger getDistance(BigInteger id1, BigInteger id2) {
-        return id1.xor(id2);
     }
 
 }
