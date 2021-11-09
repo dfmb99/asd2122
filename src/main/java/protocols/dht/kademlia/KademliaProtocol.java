@@ -99,15 +99,16 @@ public class KademliaProtocol extends BaseProtocol {
             return;                         // we do nothing here
 
         currentClosestK.put(id, findKClosestNodes(id));
-        currentQueries.put(id, new HashSet<KademliaNode>());
-        finishedQueries.put(id, new HashSet<KademliaNode>());
+        currentQueries.put(id, new TreeSet<KademliaNode>());
+        finishedQueries.put(id, new TreeSet<KademliaNode>());
 
         FindNodeMessage msg = new FindNodeMessage(id);
-        Iterator<KademliaNode> it = currentClosestK.get(id).spliterator();
+        Iterator<KademliaNode> it = currentClosestK.get(id).iterator();
         for(int i = 0; (i < alfa) && it.hasNext(); i++){  // accounts for case where we don't have k nodes in our kbuckets
             KademliaNode recipient = it.next();
             dispatchMessage(msg, recipient.getHost());
-            currentQueries.get(id, recipient);
+            SortedSet<KademliaNode> currQueries = currentQueries.get(id);
+            currQueries.add(recipient);
         }
 
     }
