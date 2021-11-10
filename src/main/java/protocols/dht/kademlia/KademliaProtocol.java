@@ -120,9 +120,9 @@ public class KademliaProtocol extends BaseProtocol {
         logger.info("Received {} from {}", msg, from);
 
         BigInteger lookUpId = msg.getLookUpId();
-        SortedSet<KademliaNode> closestK = findKClosestNodes(lookUpId); // TODO: create findKClosestNodes()
+        SortedSet<KademliaNode> closestK = findKClosestNodes(lookUpId);
 
-        // TODO: take care of updating our kbuckets. Includes sending and receiving a ping message
+        updateRoutingTable(from);
 
         dispatchMessage(new FindNodeReplyMessage(lookUpId, closestK), from);
     }
@@ -151,14 +151,21 @@ public class KademliaProtocol extends BaseProtocol {
 
         if(totalReceivedReplies % beta == 0){
             if(!closestKChanged){
-                //sendReply(); TODO: finish sending the reply to the StorageProtocol
+                //sendReply(); TODO: finish sending the reply to the StorageProtocol - alterar classe LookupReply para passar uma lista/set (kbuckets)
             }
-            // TODO: reduzir o set a k elementos de novo
+            currentClosestK = reduceToKElements(currentClosestK);
         }
 
-        // TODO: lancar nova mensagem para outro no do closestK, que ainda nao tenha sido queried
+        for(int i = 0; i < alfa - currentQueries.size(); i++){
+            FindNodeMessage findNode = new FindNodeMessage(id);
+            Host peer = firstNotQueried(currentClosestK, finishedQueries);
+            if(peer == null)
+                break;
+            dispatchMessage(findNode, peer);
+            currentQueries.add(peer);
+        }
 
-        // TODO: take care of updating routing tables ?
+        updateRoutingTable(from);
 
     }
 
@@ -167,12 +174,12 @@ public class KademliaProtocol extends BaseProtocol {
     }
 
 
-    /*----------------------------------- Aux ---------------------------------------- */
 
+    /*----------------------------------- Aux ---------------------------------------- */
     private void buildRoutingTable(Properties props) {
         List<Node> kbucket;
         for (int i = 0; i < BIT_SPACE; i++) {
-            kbucket = new ArrayList<Node>(k);
+            kbucket = new ArrayList<>(k);
             routingTable.add(kbucket);
         }
 
@@ -195,10 +202,10 @@ public class KademliaProtocol extends BaseProtocol {
         int idx = findBucketIndex(id);
         return routingTable.get(idx);
     }
+
     private int findBucketIndex(BigInteger id) {
         return (int) Math.floor(Math.log(id.doubleValue()));
     }
-
     private Node[] findAlfaClosestNodes(BigInteger id) {
         List<Node> bucket = findBucket(id);
         int resSize = Math.min(bucket.size(), alfa);
@@ -283,6 +290,7 @@ public class KademliaProtocol extends BaseProtocol {
     }
 
     // returns the node from the list with the biggest distance to id
+
     private Node getBiggestDistance(BigInteger id, List<Node> list) {
         Node biggestDistNode = null;
         BigInteger maxDist = BigInteger.ZERO;
@@ -296,4 +304,33 @@ public class KademliaProtocol extends BaseProtocol {
         return biggestDistNode;
     }
 
+    private SortedSet<KademliaNode> reduceToKElements(SortedSet<KademliaNode> closestK){
+
+        if(closestK.size() - k > 0){
+            SortedSet<KademliaNode> closestKCopy = new TreeSet<>();
+            Iterator<KademliaNode> currIt = closestK.iterator();
+            KademliaNode currNode;
+            for(int i = 0; i < k; i++){
+                currNode = currIt.next();
+                closestKCopy.add(currNode);
+            }
+            return closestKCopy;
+        }
+        else{
+            return closestK;
+        }
+    }
+
+    private Host firstNotQueried(SortedSet<KademliaNode> closestK, Set<Host> finishedQueries){
+        Iterator<KademliaNode> it = closestK.iterator();
+        KademliaNode curr;
+        Host currHost;
+        while(it.hasNext()){
+            curr = it.next();
+            currHost = curr.getHost();
+            if( !finishedQueries.contains(currHost) )
+                return currHost;
+        }
+        return null; // shouldn't happen if implementation is correct
+    }
 }
