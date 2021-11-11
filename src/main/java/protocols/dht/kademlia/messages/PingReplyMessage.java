@@ -1,17 +1,16 @@
 package protocols.dht.kademlia.messages;
 
 import io.netty.buffer.ByteBuf;
-import protocols.dht.chord.messages.overlay.KeepAliveMessage;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.network.ISerializer;
 
-public class PingMessage extends ProtoMessage {
+public class PingReplyMessage extends ProtoMessage {
 
-    public final static short MSG_ID = 402;
+    public final static short MSG_ID = 403;
 
     Double uid;
 
-    public PingMessage(Double uid) {
+    public PingReplyMessage(Double uid) {
         super(MSG_ID);
         this.uid = uid;
     }
@@ -22,19 +21,20 @@ public class PingMessage extends ProtoMessage {
 
     @Override
     public String toString() {
-        return "PingMessage";
+        return "PingReplyMessage";
     }
 
-    public static ISerializer<PingMessage> serializer = new ISerializer<>() {
+    public static ISerializer<PingReplyMessage> serializer = new ISerializer<>() {
         @Override
-        public void serialize(PingMessage sampleMessage, ByteBuf out) {
+        public void serialize(PingReplyMessage sampleMessage, ByteBuf out) {
             out.writeDouble(sampleMessage.getUid());
         }
 
         @Override
-        public PingMessage deserialize(ByteBuf in) {
+        public PingReplyMessage deserialize(ByteBuf in) {
             Double uid = in.readDouble();
-            return new PingMessage(uid);
+            return new PingReplyMessage(uid);
         }
     };
+
 }

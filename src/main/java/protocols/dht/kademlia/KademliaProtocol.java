@@ -7,6 +7,8 @@ import protocols.BaseProtocol;
 import protocols.dht.chord.timers.InfoTimer;
 import protocols.dht.kademlia.messages.FindNodeMessage;
 import protocols.dht.kademlia.messages.FindNodeReplyMessage;
+import protocols.dht.kademlia.messages.PingMessage;
+import protocols.dht.kademlia.messages.PingReplyMessage;
 import protocols.dht.kademlia.types.KademliaNode;
 import protocols.dht.kademlia.types.Node;
 import protocols.dht.requests.LookupRequest;
@@ -37,11 +39,13 @@ public class KademliaProtocol extends BaseProtocol {
     private final Node self;
     private final List<List<Node>> routingTable;
 
-
     private final Map<BigInteger, Set<Host>> currentQueries;      // map of current alfa nodes we are waiting for a findNodeReply
     private final Map<BigInteger, Set<Host>> finishedQueries;     // map of queries already performed
     private final Map<BigInteger, SortedSet<KademliaNode>>  currentClosestK;     // map of current list of closest k nodes
     private final Map<BigInteger, Integer> receivedReplies; // keeps track of the number of received replies to know if we already got beta replies
+
+    private final Map<Double, BigInteger> pingPendingToLeave; // keeps track of nodes waiting for a ping reply/fail to leave our kbuckets
+    private final Map<Double, BigInteger> pingPendingToEnter; // keeps track of nodes waiting for a ping reply/fail to enter our kbuckets
 
 
 
@@ -62,6 +66,9 @@ public class KademliaProtocol extends BaseProtocol {
         this.currentClosestK    = new HashMap<>();
         this.receivedReplies    = new HashMap<>();
 
+        this.pingPendingToLeave = new HashMap<>();
+        this.pingPendingToEnter = new HashMap<>();
+
         /*------------------------- Create TCP Channel -------------------------------- */
         createChannel(props);
 
@@ -78,6 +85,10 @@ public class KademliaProtocol extends BaseProtocol {
         /*---------------------- Register Message Handlers -------------------------- */
         registerMessageHandler(channel.id, FindNodeMessage.MSG_ID, this::UponFindNodeMessage, this::uponMessageFail);
         registerMessageHandler(channel.id, FindNodeReplyMessage.MSG_ID, this::UponFindNodeReplyMessage, this::uponMessageFail);
+        registerMessageHandler(channel.id, PingMessage.MSG_ID, this::UponPingMessage, this::uponMessageFail);
+        registerMessageHandler(channel.id, PingMessage.MSG_ID, this::UponPingReplyMessage, this::uponMessageFail);
+
+        // TODO: register ping timeout handler
 
     }
 
@@ -169,6 +180,18 @@ public class KademliaProtocol extends BaseProtocol {
 
     }
 
+    private void UponPingMessage(PingMessage msg, Host from, short sourceProto, int channelId){
+        dispatchMessage(new PingReplyMessage(msg.getUid()), from);
+    }
+
+    private void UponPingReplyMessage(PingReplyMessage msg, Host from, short sourceProto, int channelId){
+        BigInteger peerId = HashGenerator.generateHash(from.toString());
+        List<Node> bucket = findBucket(peerId);
+        // TODO: finnish
+    }
+
+
+
     protected void uponMessageFail(ProtoMessage msg, Host host, short destProto, Throwable throwable, int channelId) {
         logger.error("Message {} to {} failed, reason: {}", msg, host, throwable);
     }
@@ -176,6 +199,8 @@ public class KademliaProtocol extends BaseProtocol {
 
 
     /*----------------------------------- Aux ---------------------------------------- */
+
+
     private void buildRoutingTable(Properties props) {
         List<Node> kbucket;
         for (int i = 0; i < BIT_SPACE; i++) {
@@ -195,6 +220,30 @@ public class KademliaProtocol extends BaseProtocol {
                 System.exit(-1);
             }
         }
+
+    }
+
+    private void updateRoutingTable(Host p){
+
+        Node peer = new Node(p);
+        List<Node> bucket = findBucket(peer.getId());
+
+        if(bucket.contains(peer)){
+            bucket.remove(peer);
+            bucket.add(peer);
+        }
+        else{
+            if(bucket.size() < k){
+                bucket.remove(peer);
+                bucket.add(peer);
+            }
+            else{
+                Node oldest = bucket.get(0); // get the head/oldest
+                Double pingUid = Math.random();
+                dispatchMessage(new PingMessage(pingUid), oldest.getHost());
+            }
+        }
+
 
     }
 
