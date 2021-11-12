@@ -73,10 +73,6 @@ public abstract class BaseProtocol extends GenericProtocol {
     }
 
     protected void dispatchMessage(ProtoMessage message, Host host) {
-        if(host.equals(self)) {
-            logger.error("Sending message to my self {} message: {}", self, message);
-            System.exit(-1);
-        }
 
         if(channel.openConnections.contains(host)) {
             logger.info("Sent message {} from {} to {} ", message, self, host);
