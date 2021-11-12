@@ -99,11 +99,6 @@ public class KademliaProtocol extends BaseProtocol {
     @Override
     public void init(Properties props) {
         buildRoutingTable(props);
-
-        //int metricsInterval = Integer.parseInt(props.getProperty("protocol_metrics_interval", "1000"));
-        //if (metricsInterval > 0)
-        //    setupPeriodicTimer(new InfoTimer(), metricsInterval, metricsInterval);
-
         logger.info("Hello, I am {}", self);
     }
 
@@ -161,11 +156,7 @@ public class KademliaProtocol extends BaseProtocol {
                 if(msg.isBootstrapping() && msg.getLookupId().equals(HashGenerator.generateHash(self.toString()))){ // findNode of himself
                     populateRoutingTable();
                 }
-
-                this.currentQueries.remove(id);
-                this.finishedQueries.remove(id);
-                this.currentClosestK.remove(id);
-                this.receivedReplies.remove(id);
+                removeRequestState(id);
             }
 
         }
@@ -307,6 +298,13 @@ public class KademliaProtocol extends BaseProtocol {
         currentQueries.put(id, new TreeSet<>());
         finishedQueries.put(id, new TreeSet<>());
         receivedReplies.put(id, 0);
+    }
+
+    private void removeRequestState(BigInteger id){
+        currentQueries.remove(id);
+        finishedQueries.remove(id);
+        currentClosestK.remove(id);
+        receivedReplies.remove(id);
     }
 
     private List<Node> findBucket(BigInteger id) {
