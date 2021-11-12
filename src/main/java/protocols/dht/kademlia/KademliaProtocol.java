@@ -1,10 +1,8 @@
 package protocols.dht.kademlia;
 
-import notifications.ChannelCreated;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import protocols.BaseProtocol;
-import protocols.dht.chord.timers.InfoTimer;
 import protocols.dht.kademlia.messages.FindNodeMessage;
 import protocols.dht.kademlia.messages.FindNodeReplyMessage;
 import protocols.dht.kademlia.messages.PingMessage;
@@ -48,8 +46,6 @@ public class KademliaProtocol extends BaseProtocol {
 
     private final Map<Double, Node> pingPendingToLeave; // keeps track of nodes waiting for a ping reply/fail to leave our kbuckets
     private final Map<Double, Node> pingPendingToEnter; // keeps track of nodes waiting for a ping reply/fail to enter our kbuckets
-
-    private boolean selfFindNodeComplete; // first message of bootstrapping received from gateway
 
 
 
