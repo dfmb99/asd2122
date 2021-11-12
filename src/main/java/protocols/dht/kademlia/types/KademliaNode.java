@@ -9,8 +9,10 @@ import java.math.BigInteger;
 
 
 /**
- * This class is used to maintain nodes ordered in the sets.
- * The metric used to order the set is the distance to a certain id, which is the id being looked for
+ * This class is used to maintain nodes ordered in a set.
+ *
+ * The metric used to order the set is the distance to a certain id, which is the id
+ * being looked for in the context of the creation of this node
  */
 public class KademliaNode extends Node implements Comparable<KademliaNode>{
 
@@ -26,6 +28,10 @@ public class KademliaNode extends Node implements Comparable<KademliaNode>{
         this.distance = calcXorDistance(idToCompare);
     }
 
+    /**
+     * @param distance - distance to a given node being lookedUp
+     * @param host - node's contact information
+     */
     public KademliaNode(BigInteger distance, Host host){
         super(host);
         this.distance = distance;

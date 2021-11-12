@@ -100,11 +100,13 @@ public class KademliaProtocol extends BaseProtocol {
     public void init(Properties props) {
         buildRoutingTable(props);
 
-        int metricsInterval = Integer.parseInt(props.getProperty("protocol_metrics_interval", "1000"));
-        if (metricsInterval > 0)
-            setupPeriodicTimer(new InfoTimer(), metricsInterval, metricsInterval);
+        //int metricsInterval = Integer.parseInt(props.getProperty("protocol_metrics_interval", "1000"));
+        //if (metricsInterval > 0)
+        //    setupPeriodicTimer(new InfoTimer(), metricsInterval, metricsInterval);
 
         triggerNotification(new ChannelCreated(channel));
+
+        logger.info("Hello, I am {}", self);
     }
 
 
@@ -218,10 +220,14 @@ public class KademliaProtocol extends BaseProtocol {
 
 
     private void buildRoutingTable(Properties props) {
-        List<Node> kbucket;
+
+        int myBucket = findBucketIndex(self.getId());
+        List<Node> kBucket;
         for (int i = 0; i < BIT_SPACE; i++) {
-            kbucket = new ArrayList<>(k);
-            routingTable.add(kbucket);
+            kBucket = new ArrayList<>(k);
+            if(i == myBucket)
+                kBucket.add(self);
+            routingTable.add(kBucket);
         }
 
         if (props.containsKey("contact")) {
@@ -229,6 +235,8 @@ public class KademliaProtocol extends BaseProtocol {
                 String contact = props.getProperty("contact");
                 String[] hostElems = contact.split(":");
                 Node contactNode = new Node(new Host(InetAddress.getByName(hostElems[0]), Integer.parseInt(hostElems[1])));
+                BigInteger contactId = HashGenerator.generateHash(contactNode.getHost().toString());
+                findBucket(contactId).add(contactNode);
                 dispatchMessage(new FindNodeMessage(self.getId()), contactNode.getHost());
             } catch (Exception e) {
                 logger.error("Invalid contact on configuration: '" + props.getProperty("contact"));
