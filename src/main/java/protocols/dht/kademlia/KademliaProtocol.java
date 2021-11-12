@@ -82,11 +82,11 @@ public class KademliaProtocol extends BaseProtocol {
         /*--------------------- Register Request Handlers ----------------------------- */
         registerRequestHandler(LookupRequest.REQUEST_TYPE_ID, this::uponLookupRequest);
 
-        /*---------------------- Register Message Handlers -------------------------- */
+        /*----------------------- Register Message Handlers --------------------------- */
         registerMessageHandler(channel.id, FindNodeMessage.MSG_ID, this::UponFindNodeMessage, this::uponMessageFail);
         registerMessageHandler(channel.id, FindNodeReplyMessage.MSG_ID, this::UponFindNodeReplyMessage, this::uponMessageFail);
         registerMessageHandler(channel.id, PingMessage.MSG_ID, this::UponPingMessage, this::uponMessageFail);
-        registerMessageHandler(channel.id, PingMessage.MSG_ID, this::UponPingReplyMessage, this::uponMessageFail);
+        registerMessageHandler(channel.id, PingReplyMessage.MSG_ID, this::UponPingReplyMessage, this::uponMessageFail);
 
         // TODO: register ping timeout handler
 
@@ -130,12 +130,9 @@ public class KademliaProtocol extends BaseProtocol {
     private void UponFindNodeMessage(FindNodeMessage msg, Host from, short sourceProto, int channelId) {
         logger.info("Received {} from {}", msg, from);
 
-        BigInteger lookUpId = msg.getLookUpId();
-        SortedSet<KademliaNode> closestK = findKClosestNodes(lookUpId);
-
+        SortedSet<KademliaNode> closestK = findKClosestNodes(msg.getLookUpId());
         updateRoutingTable(from);
-
-        dispatchMessage(new FindNodeReplyMessage(lookUpId, closestK), from);
+        dispatchMessage(new FindNodeReplyMessage(msg.getLookUpId(), closestK), from);
     }
 
 
@@ -145,7 +142,7 @@ public class KademliaProtocol extends BaseProtocol {
         BigInteger id = msg.getLookupId();
         SortedSet<KademliaNode> peerClosestK = msg.getClosestNodes();
 
-        if(currentClosestK.get(id) == null)    // reply relative to a lookUp req. already terminated
+        if(currentClosestK.get(id) == null) // reply relative to a lookUp req. already terminated
             return;
 
         Integer totalReceivedReplies = receivedReplies.get(id);
@@ -158,13 +155,16 @@ public class KademliaProtocol extends BaseProtocol {
         finishedQueries.add(from);
 
         SortedSet<KademliaNode> currentClosestK = this.currentClosestK.get(id);
-        boolean closestKChanged = currentClosestK.addAll(peerClosestK);
+        currentClosestK.addAll(peerClosestK);
 
         if(totalReceivedReplies % beta == 0){
-            if(!closestKChanged){
+            List<KademliaNode> closest = new LinkedList<>(currentClosestK);
+            closest.sort(null);
+            currentClosestK = new TreeSet<>(closest.subList(0, Math.min(k, closest.size())));
+
+            if(allClosestWereQueried(currentClosestK, finishedQueries)){
                 //sendReply(); TODO: finish sending the reply to the StorageProtocol - alterar classe LookupReply para passar uma lista/set (kbuckets)
             }
-            currentClosestK = reduceToKElements(currentClosestK);
         }
 
         for(int i = 0; i < alfa - currentQueries.size(); i++){
@@ -177,7 +177,6 @@ public class KademliaProtocol extends BaseProtocol {
         }
 
         updateRoutingTable(from);
-
     }
 
     private void UponPingMessage(PingMessage msg, Host from, short sourceProto, int channelId){
@@ -420,6 +419,14 @@ public class KademliaProtocol extends BaseProtocol {
 
         closeNodes.sort(null);
         return new TreeSet<>(closeNodes.subList(0, Math.min(k, closeNodes.size())));
+    }
+
+    private boolean allClosestWereQueried(SortedSet<KademliaNode> currentClosestK, Set<Host> finishedQueries){
+        for (KademliaNode n : currentClosestK) {
+            if(!finishedQueries.contains(n.getHost()))
+                return false;
+        }
+        return true;
     }
 
 
