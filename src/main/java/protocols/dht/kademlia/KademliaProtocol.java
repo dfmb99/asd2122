@@ -49,7 +49,7 @@ public class KademliaProtocol extends BaseProtocol {
     private final Map<Double, Node> pingPendingToLeave; // keeps track of nodes waiting for a ping reply/fail to leave our kbuckets
     private final Map<Double, Node> pingPendingToEnter; // keeps track of nodes waiting for a ping reply/fail to enter our kbuckets
 
-
+    private boolean selfFindNodeComplete; // first message of bootstrapping received from gateway
 
 
 
@@ -104,8 +104,6 @@ public class KademliaProtocol extends BaseProtocol {
         //if (metricsInterval > 0)
         //    setupPeriodicTimer(new InfoTimer(), metricsInterval, metricsInterval);
 
-        triggerNotification(new ChannelCreated(channel));
-
         logger.info("Hello, I am {}", self);
     }
 
@@ -117,20 +115,8 @@ public class KademliaProtocol extends BaseProtocol {
         if(currentQueries.get(id) != null)  // If we are already performing a lookup for that id
             return;                         // we do nothing here
 
-        currentClosestK.put(id, findKClosestNodes(id));
-        currentQueries.put(id, new TreeSet<>());
-        finishedQueries.put(id, new TreeSet<>());
-        receivedReplies.put(id, 0);
-
-        FindNodeMessage msg = new FindNodeMessage(id);
-        Iterator<KademliaNode> it = currentClosestK.get(id).iterator();
-        for(int i = 0; (i < alfa) && it.hasNext(); i++){  // accounts for case where we don't have k nodes in our kbuckets
-            KademliaNode recipient = it.next();
-            dispatchMessage(msg, recipient.getHost());
-            Set<Host> currQueries = currentQueries.get(id);
-            currQueries.add(recipient.getHost());
-        }
-
+        initRequestState(id);
+        sendAlfaFindNodeMessages(id, false);
     }
 
     private void uponFindNodeMessage(FindNodeMessage msg, Host from, short sourceProto, int channelId) {
@@ -138,7 +124,7 @@ public class KademliaProtocol extends BaseProtocol {
 
         SortedSet<KademliaNode> closestK = findKClosestNodes(msg.getLookUpId());
         updateRoutingTable(from);
-        dispatchMessage(new FindNodeReplyMessage(msg.getLookUpId(), closestK), from);
+        dispatchMessage(new FindNodeReplyMessage(msg.getLookUpId(), closestK, msg.isBootstrapping()), from);
     }
 
 
@@ -169,12 +155,23 @@ public class KademliaProtocol extends BaseProtocol {
             currentClosestK = new TreeSet<>(closest.subList(0, Math.min(k, closest.size())));
 
             if(allClosestWereQueried(currentClosestK, finishedQueries)){
-                //sendReply(); TODO: finish sending the reply to the StorageProtocol - alterar classe LookupReply para passar uma lista/set (kbuckets)
+                if(!msg.isBootstrapping()){
+                    //sendReply(); TODO: finish sending the reply to the StorageProtocol - alterar classe LookupReply para passar uma lista/set (kbuckets)
+                }
+                if(msg.isBootstrapping() && msg.getLookupId().equals(HashGenerator.generateHash(self.toString()))){ // findNode of himself
+                    populateRoutingTable();
+                }
+
+                this.currentQueries.remove(id);
+                this.finishedQueries.remove(id);
+                this.currentClosestK.remove(id);
+                this.receivedReplies.remove(id);
             }
+
         }
 
         for(int i = 0; i < alfa - currentQueries.size(); i++){
-            FindNodeMessage findNode = new FindNodeMessage(id);
+            FindNodeMessage findNode = new FindNodeMessage(id, msg.isBootstrapping());
             Host peer = firstNotQueried(currentClosestK, finishedQueries);
             assert peer != null;
             dispatchMessage(findNode, peer);
@@ -237,7 +234,9 @@ public class KademliaProtocol extends BaseProtocol {
                 Node contactNode = new Node(new Host(InetAddress.getByName(hostElems[0]), Integer.parseInt(hostElems[1])));
                 BigInteger contactId = HashGenerator.generateHash(contactNode.getHost().toString());
                 findBucket(contactId).add(contactNode);
-                dispatchMessage(new FindNodeMessage(self.getId()), contactNode.getHost());
+                initRequestState(contactId);
+                dispatchMessage(new FindNodeMessage(self.getId(), true), contactNode.getHost());
+
             } catch (Exception e) {
                 logger.error("Invalid contact on configuration: '" + props.getProperty("contact"));
                 e.printStackTrace();
@@ -248,7 +247,6 @@ public class KademliaProtocol extends BaseProtocol {
     }
 
     private void updateRoutingTable(Host p){
-
         Node peer = new Node(p);
         List<Node> bucket = findBucket(peer.getId());
 
@@ -264,12 +262,51 @@ public class KademliaProtocol extends BaseProtocol {
                 Node oldest = bucket.get(0); // get the head/oldest
                 Double pingUid = Math.random();
                 dispatchMessage(new PingMessage(pingUid), oldest.getHost());
+                setupTimer(new PingTimer(pingUid), pingTimeout);
                 pingPendingToLeave.put(pingUid, oldest);
                 pingPendingToEnter.put(pingUid, peer);
-                setupTimer(new PingTimer(pingUid), pingTimeout);
             }
         }
+    }
 
+    private void populateRoutingTable(){
+        boolean foundFirstNotEmpty = false;
+        List<Node> bucket;
+        int i = 0;
+        while(i < routingTable.size()){
+
+            if(!foundFirstNotEmpty){
+                bucket = routingTable.get(i);
+                if(!bucket.isEmpty())
+                    foundFirstNotEmpty = true;
+            }
+
+            if(foundFirstNotEmpty){
+                BigInteger target = new BigInteger(String.valueOf(Math.pow(2, i)));
+                initRequestState(target);
+                sendAlfaFindNodeMessages(target, true);
+            }
+
+            i++;
+        }
+    }
+
+    private void sendAlfaFindNodeMessages(BigInteger target, boolean bootstrapping) {
+        FindNodeMessage msg = new FindNodeMessage(target, bootstrapping);
+        Iterator<KademliaNode> it = currentClosestK.get(target).iterator();
+        for(int k = 0; (k < alfa) && it.hasNext(); k++){  // accounts for case where we don't have k nodes in our kbuckets
+            KademliaNode recipient = it.next();
+            dispatchMessage(msg, recipient.getHost());
+            Set<Host> currQueries = currentQueries.get(target);
+            currQueries.add(recipient.getHost());
+        }
+    }
+
+    private void initRequestState(BigInteger id){
+        currentClosestK.put(id, findKClosestNodes(id));
+        currentQueries.put(id, new TreeSet<>());
+        finishedQueries.put(id, new TreeSet<>());
+        receivedReplies.put(id, 0);
     }
 
     private List<Node> findBucket(BigInteger id) {

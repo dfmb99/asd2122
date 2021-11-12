@@ -6,6 +6,7 @@ import org.apache.logging.log4j.Logger;
 
 import protocols.apps.AutomatedApplication;
 import protocols.dht.chord.ChordProtocol;
+import protocols.dht.kademlia.KademliaProtocol;
 import protocols.storage.StorageProtocol;
 import pt.unl.fct.di.novasys.babel.core.Babel;
 import pt.unl.fct.di.novasys.network.data.Host;
@@ -45,9 +46,10 @@ public class Main {
         // Application
         AutomatedApplication app = new AutomatedApplication(myself, props, StorageProtocol.PROTOCOL_ID);
         // Storage Protocol
-        StorageProtocol storage = new StorageProtocol(props, myself, ChordProtocol.PROTOCOL_ID);
+        StorageProtocol storage = new StorageProtocol(props, myself, KademliaProtocol.PROTOCOL_ID);
         // DHT Protocol
-        ChordProtocol dht = new ChordProtocol(props, myself);
+        //ChordProtocol dht = new ChordProtocol(props, myself);
+        KademliaProtocol dht = new KademliaProtocol(props, myself);
 
         //Register applications in babel
         babel.registerProtocol(app);

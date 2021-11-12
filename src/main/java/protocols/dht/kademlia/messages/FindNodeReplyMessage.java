@@ -17,15 +17,21 @@ public class FindNodeReplyMessage extends ProtoMessage {
 
     private BigInteger id;  // id whose closestNodes are referring to
     private SortedSet<KademliaNode> closestNodes;
+    private boolean isBootstrapping;
 
-    public FindNodeReplyMessage(BigInteger id, SortedSet<KademliaNode> closestNodes) {
+    public FindNodeReplyMessage(BigInteger id, SortedSet<KademliaNode> closestNodes, boolean isBootstrapping) {
         super(MSG_ID);
         this.id = id;
         this.closestNodes = closestNodes;
+        this.isBootstrapping = isBootstrapping;
     }
 
     public BigInteger getLookupId(){
         return this.id;
+    }
+
+    public boolean isBootstrapping() {
+        return isBootstrapping;
     }
 
     public SortedSet<KademliaNode> getClosestNodes() {
@@ -51,6 +57,7 @@ public class FindNodeReplyMessage extends ProtoMessage {
             for(KademliaNode n: sampleMessage.getClosestNodes()){
                 KademliaNode.serializer.serialize(n, out);
             }
+            out.writeBoolean(sampleMessage.isBootstrapping());
         }
 
         @Override
@@ -61,7 +68,8 @@ public class FindNodeReplyMessage extends ProtoMessage {
             for(int i = 0; i < size; i++){
                 closestNodes.add(KademliaNode.serializer.deserialize(in));
             }
-            return new FindNodeReplyMessage(id, closestNodes);
+            boolean bootstrapping = in.readBoolean();
+            return new FindNodeReplyMessage(id, closestNodes, bootstrapping);
         }
     };
 }

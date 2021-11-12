@@ -12,14 +12,20 @@ public class FindNodeMessage extends ProtoMessage {
     public final static short MSG_ID = 400;
 
     private BigInteger id;
+    private boolean isBootstrapping;
 
-    public FindNodeMessage(BigInteger node) {
+    public FindNodeMessage(BigInteger node, boolean isBootstrapping) {
         super(MSG_ID);
         this.id = node;
+        this.isBootstrapping = isBootstrapping;
     }
 
     public BigInteger getLookUpId(){
         return id;
+    }
+
+    public boolean isBootstrapping() {
+        return isBootstrapping;
     }
 
     public String toString() {
@@ -34,12 +40,14 @@ public class FindNodeMessage extends ProtoMessage {
             byte[] keyBytes = sampleMessage.id.toByteArray();
             out.writeInt(keyBytes.length);
             out.writeBytes(keyBytes);
+            out.writeBoolean(sampleMessage.isBootstrapping);
         }
 
         @Override
         public FindNodeMessage deserialize(ByteBuf in) throws IOException {
             BigInteger id = new BigInteger(in.readBytes(in.readInt()).array());
-            return new FindNodeMessage(id);
+            boolean bootstrapping = in.readBoolean();
+            return new FindNodeMessage(id, bootstrapping);
         }
     };
 }
