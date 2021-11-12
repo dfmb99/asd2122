@@ -39,9 +39,9 @@ public class KademliaProtocol extends BaseProtocol {
     private final Node self;
     private final List<List<Node>> routingTable;
 
-    private final Map<BigInteger, Set<Host>> currentQueries;      // map of current alfa nodes we are waiting for a findNodeReply
-    private final Map<BigInteger, Set<Host>> finishedQueries;     // map of queries already performed
-    private final Map<BigInteger, SortedSet<KademliaNode>>  currentClosestK;     // map of current list of closest k nodes
+    private final Map<BigInteger, Set<Host>> currentQueries; // map of current alfa nodes we are waiting for a findNodeReply
+    private final Map<BigInteger, Set<Host>> finishedQueries; // map of queries already performed
+    private final Map<BigInteger, SortedSet<KademliaNode>> currentClosestK; // map of current list of closest k nodes
     private final Map<BigInteger, Integer> receivedReplies; // keeps track of the number of received replies to know if we already got beta replies
 
     private final Map<Double, BigInteger> pingPendingToLeave; // keeps track of nodes waiting for a ping reply/fail to leave our kbuckets
@@ -255,6 +255,7 @@ public class KademliaProtocol extends BaseProtocol {
     private int findBucketIndex(BigInteger id) {
         return (int) Math.floor(Math.log(id.doubleValue()));
     }
+
     private Node[] findAlfaClosestNodes(BigInteger id) {
         List<Node> bucket = findBucket(id);
         int resSize = Math.min(bucket.size(), alfa);
@@ -382,4 +383,44 @@ public class KademliaProtocol extends BaseProtocol {
         }
         return null; // shouldn't happen if implementation is correct
     }
+
+    private SortedSet<KademliaNode> findKClosestNodes(BigInteger id){
+        int bucketIdx = findBucketIndex(id);
+        List<Node> bucket = routingTable.get(bucketIdx);
+        List<KademliaNode> closeNodes = new LinkedList<>();
+
+        for (Node n : bucket)
+            closeNodes.add(new KademliaNode(n.getHost(), id));
+
+        int round = 1;
+        int bucketBelowIdx = bucketIdx - round;
+        int bucketAboveIdx = bucketIdx + round;
+
+        while(closeNodes.size() < k){
+
+            if(bucketBelowIdx >= 0){
+                List<Node> bucketBelow = routingTable.get(bucketBelowIdx);
+                for(Node n : bucketBelow)
+                    closeNodes.add(new KademliaNode(n.getHost(), id));
+            }
+
+            if(bucketAboveIdx < 160){
+                List<Node> bucketAbove = routingTable.get(bucketAboveIdx);
+                for(Node n : bucketAbove)
+                    closeNodes.add(new KademliaNode(n.getHost(), id));
+            }
+
+            round++;
+            bucketBelowIdx--;
+            bucketAboveIdx++;
+
+            if(bucketBelowIdx < 0 && bucketAboveIdx >= 160)
+                break;
+        }
+
+        closeNodes.sort(null);
+        return new TreeSet<>(closeNodes.subList(0, Math.min(k, closeNodes.size())));
+    }
+
+
 }
