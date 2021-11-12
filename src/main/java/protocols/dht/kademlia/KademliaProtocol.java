@@ -9,6 +9,7 @@ import protocols.dht.kademlia.messages.FindNodeMessage;
 import protocols.dht.kademlia.messages.FindNodeReplyMessage;
 import protocols.dht.kademlia.messages.PingMessage;
 import protocols.dht.kademlia.messages.PingReplyMessage;
+import protocols.dht.kademlia.timers.PingTimer;
 import protocols.dht.kademlia.types.KademliaNode;
 import protocols.dht.kademlia.types.Node;
 import protocols.dht.requests.LookupRequest;
@@ -35,6 +36,7 @@ public class KademliaProtocol extends BaseProtocol {
     private final int k;
     private final int alfa;
     private final int beta;
+    private final int pingTimeout;
 
     private final Node self;
     private final List<List<Node>> routingTable;
@@ -44,8 +46,8 @@ public class KademliaProtocol extends BaseProtocol {
     private final Map<BigInteger, SortedSet<KademliaNode>> currentClosestK; // map of current list of closest k nodes
     private final Map<BigInteger, Integer> receivedReplies; // keeps track of the number of received replies to know if we already got beta replies
 
-    private final Map<Double, BigInteger> pingPendingToLeave; // keeps track of nodes waiting for a ping reply/fail to leave our kbuckets
-    private final Map<Double, BigInteger> pingPendingToEnter; // keeps track of nodes waiting for a ping reply/fail to enter our kbuckets
+    private final Map<Double, Node> pingPendingToLeave; // keeps track of nodes waiting for a ping reply/fail to leave our kbuckets
+    private final Map<Double, Node> pingPendingToEnter; // keeps track of nodes waiting for a ping reply/fail to enter our kbuckets
 
 
 
@@ -57,6 +59,7 @@ public class KademliaProtocol extends BaseProtocol {
         this.k = Integer.parseInt(props.getProperty("k_value"));
         this.alfa = Integer.parseInt(props.getProperty("alfa_value"));
         this.beta = Integer.parseInt(props.getProperty("beta_value"));
+        this.pingTimeout = Integer.parseInt(props.getProperty("ping_timeout"));
 
         this.self = new Node(self);
         this.routingTable = new ArrayList<>(BIT_SPACE);
@@ -79,16 +82,17 @@ public class KademliaProtocol extends BaseProtocol {
         registerChannelEventHandler(channel.id, InConnectionUp.EVENT_ID, this::uponInConnectionUp);
         registerChannelEventHandler(channel.id, InConnectionDown.EVENT_ID, this::uponInConnectionDown);
 
-        /*--------------------- Register Request Handlers ----------------------------- */
+        /*----------------------- Register Request Handlers --------------------------- */
         registerRequestHandler(LookupRequest.REQUEST_TYPE_ID, this::uponLookupRequest);
 
         /*----------------------- Register Message Handlers --------------------------- */
-        registerMessageHandler(channel.id, FindNodeMessage.MSG_ID, this::UponFindNodeMessage, this::uponMessageFail);
-        registerMessageHandler(channel.id, FindNodeReplyMessage.MSG_ID, this::UponFindNodeReplyMessage, this::uponMessageFail);
-        registerMessageHandler(channel.id, PingMessage.MSG_ID, this::UponPingMessage, this::uponMessageFail);
-        registerMessageHandler(channel.id, PingReplyMessage.MSG_ID, this::UponPingReplyMessage, this::uponMessageFail);
+        registerMessageHandler(channel.id, FindNodeMessage.MSG_ID, this::uponFindNodeMessage, this::uponMessageFail);
+        registerMessageHandler(channel.id, FindNodeReplyMessage.MSG_ID, this::uponFindNodeReplyMessage, this::uponMessageFail);
+        registerMessageHandler(channel.id, PingMessage.MSG_ID, this::uponPingMessage, this::uponMessageFail);
+        registerMessageHandler(channel.id, PingReplyMessage.MSG_ID, this::uponPingReplyMessage, this::uponMessageFail);
 
-        // TODO: register ping timeout handler
+        /*------------------------ Register Timers Handler ---------------------------- */
+        registerTimerHandler(PingTimer.TIMER_ID, this::uponPingTimer);
 
     }
 
@@ -112,8 +116,8 @@ public class KademliaProtocol extends BaseProtocol {
             return;                         // we do nothing here
 
         currentClosestK.put(id, findKClosestNodes(id));
-        currentQueries.put(id, new TreeSet<Host>());
-        finishedQueries.put(id, new TreeSet<Host>());
+        currentQueries.put(id, new TreeSet<>());
+        finishedQueries.put(id, new TreeSet<>());
         receivedReplies.put(id, 0);
 
         FindNodeMessage msg = new FindNodeMessage(id);
@@ -127,7 +131,7 @@ public class KademliaProtocol extends BaseProtocol {
 
     }
 
-    private void UponFindNodeMessage(FindNodeMessage msg, Host from, short sourceProto, int channelId) {
+    private void uponFindNodeMessage(FindNodeMessage msg, Host from, short sourceProto, int channelId) {
         logger.info("Received {} from {}", msg, from);
 
         SortedSet<KademliaNode> closestK = findKClosestNodes(msg.getLookUpId());
@@ -136,7 +140,7 @@ public class KademliaProtocol extends BaseProtocol {
     }
 
 
-    private void UponFindNodeReplyMessage(FindNodeReplyMessage msg, Host from, short sourceProto, int channelId) {
+    private void uponFindNodeReplyMessage(FindNodeReplyMessage msg, Host from, short sourceProto, int channelId) {
         logger.info("Received {} from {}", msg, from);
 
         BigInteger id = msg.getLookupId();
@@ -170,8 +174,7 @@ public class KademliaProtocol extends BaseProtocol {
         for(int i = 0; i < alfa - currentQueries.size(); i++){
             FindNodeMessage findNode = new FindNodeMessage(id);
             Host peer = firstNotQueried(currentClosestK, finishedQueries);
-            if(peer == null)
-                break;
+            assert peer != null;
             dispatchMessage(findNode, peer);
             currentQueries.add(peer);
         }
@@ -179,16 +182,30 @@ public class KademliaProtocol extends BaseProtocol {
         updateRoutingTable(from);
     }
 
-    private void UponPingMessage(PingMessage msg, Host from, short sourceProto, int channelId){
+    private void uponPingMessage(PingMessage msg, Host from, short sourceProto, int channelId){
+        logger.info("Received {} from {}", msg, from);
+
         dispatchMessage(new PingReplyMessage(msg.getUid()), from);
     }
 
-    private void UponPingReplyMessage(PingReplyMessage msg, Host from, short sourceProto, int channelId){
-        BigInteger peerId = HashGenerator.generateHash(from.toString());
-        List<Node> bucket = findBucket(peerId);
-        // TODO: finnish
+    private void uponPingReplyMessage(PingReplyMessage msg, Host from, short sourceProto, int channelId){
+        logger.info("Received {} from {}", msg, from);
+
+        pingPendingToEnter.remove(msg.getUid());
+        pingPendingToLeave.remove(msg.getUid());
     }
 
+    private void uponPingTimer(PingTimer timer, long timerId){
+        logger.info("Ping {} timed out", timer);
+
+        Double pingUid = timer.getPingUid();
+        Node enteringNode = pingPendingToEnter.remove(pingUid);
+        Node leavingNode = pingPendingToLeave.remove(pingUid);
+
+        List<Node> bucket = findBucket(HashGenerator.generateHash(enteringNode.getHost().toString()));
+        bucket.remove(leavingNode);
+        bucket.add(enteringNode);
+    }
 
 
     protected void uponMessageFail(ProtoMessage msg, Host host, short destProto, Throwable throwable, int channelId) {
@@ -233,16 +250,17 @@ public class KademliaProtocol extends BaseProtocol {
         }
         else{
             if(bucket.size() < k){
-                bucket.remove(peer);
                 bucket.add(peer);
             }
-            else{
+            else{ // bucket full
                 Node oldest = bucket.get(0); // get the head/oldest
                 Double pingUid = Math.random();
                 dispatchMessage(new PingMessage(pingUid), oldest.getHost());
+                pingPendingToLeave.put(pingUid, oldest);
+                pingPendingToEnter.put(pingUid, peer);
+                setupTimer(new PingTimer(pingUid), pingTimeout);
             }
         }
-
 
     }
 
@@ -255,120 +273,8 @@ public class KademliaProtocol extends BaseProtocol {
         return (int) Math.floor(Math.log(id.doubleValue()));
     }
 
-    private Node[] findAlfaClosestNodes(BigInteger id) {
-        List<Node> bucket = findBucket(id);
-        int resSize = Math.min(bucket.size(), alfa);
-        List<Node> alreadyContainedNodes = new LinkedList<>();
 
 
-        Node closest = null;
-        BigInteger closestDist = null;
-        for(int i = 0; i < resSize; i++){               // Go over the bucket alfa (or bucket.size if bucket.size < alfa) times
-            for(int j = 0; j < bucket.size(); j++){     // Store the closest node that we don't already have at each cicle
-                Node current = bucket.get(j);
-                if(j == 0){ // initialize closest and closestDist
-                    for(int k = 0; k < alfa; k++){
-                        Node curr = bucket.get(k);
-                        if (!alreadyContainedNodes.contains(curr)) {
-                            closest = curr;
-                            closestDist = getDistance(id, curr.getId());
-                            break;
-                        }
-                    }
-                }
-                BigInteger dist = getDistance(current.getId(), id);
-                if( ( dist.compareTo(closestDist) < 0 ) && ( !alreadyContainedNodes.contains(closest) ) ){
-                    closest = current;
-                    closestDist = dist;
-                }
-            }
-            alreadyContainedNodes.add(closest);
-        }
-
-        Node[] closestNodes = new Node[resSize];
-        for(int i = 0; i < resSize; i++){
-            closestNodes[i] = alreadyContainedNodes.get(i);
-        }
-        return closestNodes;
-    }
-
-    /**
-     *  Gets distance between two nodes
-     * @param id1 - id of node1
-     * @param id2 - id of node2
-     */
-    private BigInteger getDistance(BigInteger id1, BigInteger id2) {
-        return id1.xor(id2);
-    }
-
-
-    private List<Node> getClosestList(BigInteger lookUpId, List<Node> bucket, int idx) {
-        List<Node> closest = new ArrayList<>();
-        // updates closest nodes with current bucket
-        updateClosestList(lookUpId, bucket, closest);
-
-        int i = 1;
-        while (closest.size() < this.k && ( idx - i >= 0 || idx + i < this.routingTable.size() - 1)) {
-            if (idx - i >= 0) {
-                List<Node> l1 = this.routingTable.get(idx - i);
-                updateClosestList(lookUpId, l1, closest);
-            }
-            if (idx + i < this.routingTable.size() - 1) {
-                List<Node> l2 = this.routingTable.get(idx + i);
-                updateClosestList(lookUpId, l2, closest);
-            }
-            i++;
-        }
-        return closest;
-    }
-
-    private void updateClosestList(BigInteger lookUpId, List<Node> bucket, List<Node> closest) {
-        for (Node n : bucket) {
-            if (closest.size() < this.k) {
-                closest.add(n);
-            } else {
-                Node biggestDistNode = getBiggestDistance(lookUpId, closest);
-                BigInteger biggestDist = getDistance(lookUpId, biggestDistNode.getId());
-                BigInteger currDist = getDistance(lookUpId, n.getId());
-                if (currDist.compareTo(biggestDist) < 0) {
-                    closest.remove(biggestDistNode);
-                    closest.add(n);
-                }
-            }
-        }
-    }
-
-    // returns the node from the list with the biggest distance to id
-
-    private Node getBiggestDistance(BigInteger id, List<Node> list) {
-        Node biggestDistNode = null;
-        BigInteger maxDist = BigInteger.ZERO;
-        for (Node n : list) {
-            BigInteger curr = getDistance(id, n.getId());
-            if (curr.compareTo(maxDist) > 0) {
-                biggestDistNode = n;
-                maxDist = curr;
-            }
-        }
-        return biggestDistNode;
-    }
-
-    private SortedSet<KademliaNode> reduceToKElements(SortedSet<KademliaNode> closestK){
-
-        if(closestK.size() - k > 0){
-            SortedSet<KademliaNode> closestKCopy = new TreeSet<>();
-            Iterator<KademliaNode> currIt = closestK.iterator();
-            KademliaNode currNode;
-            for(int i = 0; i < k; i++){
-                currNode = currIt.next();
-                closestKCopy.add(currNode);
-            }
-            return closestKCopy;
-        }
-        else{
-            return closestK;
-        }
-    }
 
     private Host firstNotQueried(SortedSet<KademliaNode> closestK, Set<Host> finishedQueries){
         Iterator<KademliaNode> it = closestK.iterator();
