@@ -113,8 +113,8 @@ public class KademliaProtocol extends BaseProtocol {
     private void uponFindNodeMessage(FindNodeMessage msg, Host from, short sourceProto, int channelId) {
         logger.info("Received {} from {}", msg, from);
 
-        SortedSet<KademliaNode> closestK = findKClosestNodes(msg.getLookUpId());
         updateRoutingTable(from);
+        SortedSet<KademliaNode> closestK = findKClosestNodes(msg.getLookUpId());
         dispatchMessage(new FindNodeReplyMessage(msg.getLookUpId(), closestK, msg.isBootstrapping()), from);
     }
 
