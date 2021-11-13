@@ -9,13 +9,17 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.util.Objects;
 
-// comment
 public class Node {
 
     private final BigInteger id;
     private final Host host;
 
     public Node(Host host) {
+        this.id = HashGenerator.generateHash(host.toString());
+        this.host = host;
+    }
+
+    public Node(BigInteger id, Host host) {
         this.id = HashGenerator.generateHash(host.toString());
         this.host = host;
     }
@@ -31,14 +35,14 @@ public class Node {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof Node)) return false;
+        if (o == null || getClass() != o.getClass()) return false;
         Node node = (Node) o;
-        return Objects.equals(getHost(), node.getHost());
+        return host.equals(node.host);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(getHost());
+        return Objects.hash(host);
     }
 
     public static ISerializer<Node> serializer = new ISerializer<Node>() {

@@ -1,28 +1,25 @@
 package protocols.dht.replies;
 
-import protocols.dht.chord.types.ChordNode;
 import protocols.dht.types.Node;
 import pt.unl.fct.di.novasys.babel.generic.ProtoReply;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 public class LookupReply extends ProtoReply {
 
     public static final short REPLY_TYPE_ID = 200;
 
     private final UUID requestId;
-    private final List<Node> nodes;
+    private final Set<Node> nodes;
 
     public LookupReply(UUID requestId, Node node) {
         super(REPLY_TYPE_ID);
         this.requestId = requestId;
-        this.nodes = new ArrayList<>();
+        this.nodes = new HashSet<>();
         nodes.add(node);
     }
 
-    public LookupReply(UUID requestId, List<Node> nodes) {
+    public LookupReply(UUID requestId, Set<Node> nodes) {
         super(REPLY_TYPE_ID);
         this.requestId = requestId;
         this.nodes = nodes;
@@ -32,7 +29,7 @@ public class LookupReply extends ProtoReply {
         return requestId;
     }
 
-    public List<Node> getNodes() {
+    public Set<Node> getNodes() {
         return nodes;
     }
 }

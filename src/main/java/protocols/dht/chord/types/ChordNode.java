@@ -2,6 +2,7 @@ package protocols.dht.chord.types;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
+import protocols.dht.types.Node;
 import pt.unl.fct.di.novasys.network.ISerializer;
 import pt.unl.fct.di.novasys.network.data.Host;
 
@@ -31,6 +32,11 @@ public class ChordNode {
     public Host getHost() {
         return host;
     }
+
+    public Node toNode() {
+        return new Node(id.id, host);
+    }
+
 
     public static boolean equals(ChordNode first, ChordNode second) {
         if(first == null) return false;

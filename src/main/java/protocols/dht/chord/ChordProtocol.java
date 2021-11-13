@@ -286,12 +286,12 @@ public class ChordProtocol extends BaseProtocol {
         logger.info("Lookup request for {}", request.getName());
         ChordKey key = new ChordKey(request.getName());
         if(Ring.inBounds(key, self, getSuccessor())){
-            sendReply(new LookupReply(request.getRequestId(), getSuccessor()), StorageProtocol.PROTOCOL_ID);
+            sendReply(new LookupReply(request.getRequestId(), getSuccessor().toNode()), StorageProtocol.PROTOCOL_ID);
         }
         else{
             ChordNode closestPrecedingNode = closestPrecedingNode(key);
             if(ChordNode.equals(closestPrecedingNode,self))
-                sendReply(new LookupReply(request.getRequestId(), getSuccessor()), StorageProtocol.PROTOCOL_ID);
+                sendReply(new LookupReply(request.getRequestId(), getSuccessor().toNode()), StorageProtocol.PROTOCOL_ID);
             else
                 dispatchMessage(new FindSuccessorMessage(request.getRequestId(), key, self.getHost()), closestPrecedingNode.getHost());
         }
@@ -313,7 +313,7 @@ public class ChordProtocol extends BaseProtocol {
 
     private void UponFindSuccessorReplyMessage(FindSuccessorReplyMessage msg, Host from, short sourceProto, int channelId) {
         logger.info("Received {} from {}", msg, from);
-        sendReply(new LookupReply(msg.getRequestId(), msg.getSuccessor()), StorageProtocol.PROTOCOL_ID);
+        sendReply(new LookupReply(msg.getRequestId(), msg.getSuccessor().toNode()), StorageProtocol.PROTOCOL_ID);
     }
 
     /*----------------------------------- Aux ---------------------------------------- */
