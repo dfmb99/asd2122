@@ -1,4 +1,4 @@
-package protocols.dht.kademlia.types;
+package protocols.dht.types;
 
 import io.netty.buffer.ByteBuf;
 import pt.unl.fct.di.novasys.network.ISerializer;

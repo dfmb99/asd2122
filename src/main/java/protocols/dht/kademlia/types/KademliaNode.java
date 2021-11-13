@@ -1,6 +1,7 @@
 package protocols.dht.kademlia.types;
 
 import io.netty.buffer.ByteBuf;
+import protocols.dht.types.Node;
 import pt.unl.fct.di.novasys.network.ISerializer;
 import pt.unl.fct.di.novasys.network.data.Host;
 

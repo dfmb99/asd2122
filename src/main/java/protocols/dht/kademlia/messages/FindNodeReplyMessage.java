@@ -3,7 +3,7 @@ package protocols.dht.kademlia.messages;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import protocols.dht.kademlia.types.KademliaNode;
-import protocols.dht.kademlia.types.Node;
+import protocols.dht.types.Node;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.network.ISerializer;
 
