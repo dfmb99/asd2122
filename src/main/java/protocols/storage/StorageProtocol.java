@@ -122,18 +122,18 @@ public class StorageProtocol extends BaseProtocol {
 
         if(request instanceof StoreRequest) {
             StoreRequest storeRequest = (StoreRequest) request;
-            if(result.getNode().getHost().equals(self)) {
+            if(result.getNodes().getHost().equals(self)) {
                 storage.put(storeRequest.getName(), storeRequest.getContent());
                 logger.info("Stored content {} in myself", storeRequest.getName());
                 sendReply(new StoreOKReply(storeRequest.getRequestId(), storeRequest.getName()), AutomatedApplication.PROTO_ID);
             }
-            else dispatchMessage(new StoreContentMessage(result.getRequestId(), storeRequest.getName(), storeRequest.getContent()), result.getNode().getHost());
+            else dispatchMessage(new StoreContentMessage(result.getRequestId(), storeRequest.getName(), storeRequest.getContent()), result.getNodes().getHost());
         }
 
 
         else if(request instanceof RetrieveRequest) {
             RetrieveRequest retrieveRequest = (RetrieveRequest) request;
-            if(result.getNode().getHost().equals(self)) {
+            if(result.getNodes().getHost().equals(self)) {
                 byte[] content = storage.get(retrieveRequest.getName());
                 if(content != null) {
                     logger.info("Failed to retrieved content {} from myself", retrieveRequest.getName());
@@ -144,7 +144,7 @@ public class StorageProtocol extends BaseProtocol {
                     sendReply(new RetrieveFailedReply(retrieveRequest.getRequestId(), retrieveRequest.getName()), AutomatedApplication.PROTO_ID);
                 }
             }
-            else dispatchMessage(new RetrieveContentMessage(result.getRequestId(), retrieveRequest.getName()), result.getNode().getHost());
+            else dispatchMessage(new RetrieveContentMessage(result.getRequestId(), retrieveRequest.getName()), result.getNodes().getHost());
         }
     }
 

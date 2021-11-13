@@ -23,7 +23,6 @@ import pt.unl.fct.di.novasys.network.data.Host;
 import protocols.dht.chord.types.Ring;
 
 import java.io.IOException;
-import java.math.BigInteger;
 import java.net.InetAddress;
 import java.util.*;
 
@@ -33,9 +32,6 @@ public class ChordProtocol extends BaseProtocol {
 
     public static final short PROTOCOL_ID = 20;
     public static final String PROTOCOL_NAME = "ChordProtocol";
-
-    public static int M;
-    private final Ring ring;
 
     private boolean bIsInsideRing;
 
@@ -48,20 +44,20 @@ public class ChordProtocol extends BaseProtocol {
         super(self, PROTOCOL_NAME, PROTOCOL_ID, logger);
 
         int numberOfNodes = Integer.parseInt(props.getProperty("total_processes"));
-        M = 2*(int)(Math.log(numberOfNodes) / Math.log(2));
-        this.ring = new Ring(BigInteger.TWO.pow(M));
 
         this.bIsInsideRing = false;
+
+        int numberOfFingers = Math.min(numberOfNodes-1, 2*(int)(Math.log(numberOfNodes) / Math.log(2)));
 
         this.self = new ChordNode(self);
         this.predecessor = this.self;
 
-        this.fingers = new ChordNode[M];
+        this.fingers = new ChordNode[numberOfFingers];
         Arrays.fill(fingers, this.self);
 
-        this.fingerSegment = new ChordSegment[M];
-        for(int i = 0; i<M; i++) {
-            fingerSegment[i] = ChordSegment.of(this.self.getId(), nextFinger);
+        this.fingerSegment = new ChordSegment[numberOfFingers];
+        for(int i = 0; i<numberOfFingers; i++) {
+            fingerSegment[i] = new ChordSegment(this.self.getId(), nextFinger);
         }
 
         /*------------------------- Create TCP Channel -------------------------------- */
@@ -162,7 +158,7 @@ public class ChordProtocol extends BaseProtocol {
     private void uponJoinRingMessage(JoinRingMessage msg, Host from, short sourceProto, int channelId) {
         logger.info("Received {} from {}", msg, from);
         ChordNode node = msg.getNode();
-        if(ring.inBounds(node, self, getSuccessor())){
+        if(Ring.inBounds(node, self, getSuccessor())){
             dispatchMessage(new JoinRingReplyMessage(getSuccessor()), node.getHost());
         }
         else {
@@ -194,7 +190,7 @@ public class ChordProtocol extends BaseProtocol {
 
     private void uponGetPredecessorReplyMessage(GetPredecessorReplyMessage msg, Host from, short sourceProto, int channelId) {
         logger.info("Received {} from {}", msg, from);
-        if(ring.inBounds(msg.getPredecessor(), self, getSuccessor()) && !ChordNode.equals(msg.getPredecessor(),self))
+        if(Ring.inBounds(msg.getPredecessor(), self, getSuccessor()) && !ChordNode.equals(msg.getPredecessor(),self))
             setSuccessor(msg.getPredecessor());
         dispatchMessageButNotToSelf(new NotifySuccessorMessage(), getSuccessor().getHost());
     }
@@ -203,7 +199,7 @@ public class ChordProtocol extends BaseProtocol {
         logger.info("Received {} from {}", msg, from);
         ChordNode node = new ChordNode(from);
 
-        if(ring.inBounds(node, predecessor, self))
+        if(Ring.inBounds(node, predecessor, self))
             setPredecessor(node);
 
         if(ChordNode.equals(getSuccessor(),self))
@@ -227,7 +223,7 @@ public class ChordProtocol extends BaseProtocol {
 
     private void uponRestoreFingerMessage(RestoreFingerMessage msg, Host from, short sourceProto, int channelId) {
         logger.info("Received {} from {}", msg, from);
-        if(ring.inBounds(msg.getSegment(), self, getSuccessor()))
+        if(Ring.inBounds(msg.getSegment(), self, getSuccessor()))
             dispatchMessage(new RestoreFingerReplyMessage(msg.getSegment(), getSuccessor()), msg.getHost());
         else {
             ChordNode closestPrecedingNode = closestPrecedingNode(msg.getSegment());
@@ -237,7 +233,7 @@ public class ChordProtocol extends BaseProtocol {
 
     private void uponRestoreFingerReplyMessage(RestoreFingerReplyMessage msg, Host from, short sourceProto, int channelId) {
         logger.info("Received {} from {}", msg, from);
-        if(ring.inBounds(msg.getSegment(), self, msg.getNode()))
+        if(Ring.inBounds(msg.getSegment(), self, msg.getNode()))
             setFinger(msg.getSegment().fingerIndex, msg.getNode());
     }
 
@@ -288,8 +284,8 @@ public class ChordProtocol extends BaseProtocol {
 
     public void uponLookupRequest(LookupRequest request, short sourceProto) {
         logger.info("Lookup request for {}", request.getName());
-        ChordKey key = ChordKey.of(request.getName());
-        if(ring.inBounds(key, self, getSuccessor())){
+        ChordKey key = new ChordKey(request.getName());
+        if(Ring.inBounds(key, self, getSuccessor())){
             sendReply(new LookupReply(request.getRequestId(), getSuccessor()), StorageProtocol.PROTOCOL_ID);
         }
         else{
@@ -303,7 +299,7 @@ public class ChordProtocol extends BaseProtocol {
 
     private void UponFindSuccessorMessage(FindSuccessorMessage msg, Host from, short sourceProto, int channelId) {
         logger.info("Received {} from {}", msg, from);
-        if(ring.inBounds(msg.getKey(), self, getSuccessor())){
+        if(Ring.inBounds(msg.getKey(), self, getSuccessor())){
             dispatchMessage(new FindSuccessorReplyMessage(msg.getRequestId(), msg.getKey(), getSuccessor()), msg.getHost());
         }
         else{
@@ -326,38 +322,17 @@ public class ChordProtocol extends BaseProtocol {
         return closestPrecedingNode(node.getId());
     }
 
-    private ChordNode closestPrecedingNode(ChordSegment segment){
-        return closestPrecedingNode(ChordKey.of(segment));
+    private ChordNode closestPrecedingNode(ChordSegment segment) {
+        return closestPrecedingNode(new ChordKey(segment));
     }
 
     private ChordNode closestPrecedingNode(ChordKey key){
         for(int i = fingers.length-1; i >= 0; i--){
-            if(!fingers[i].equals(self) && ring.inBounds(key, fingers[i], self)){
+            if(!fingers[i].equals(self) && Ring.inBounds(key, fingers[i], self)){
                 return fingers[i];
             }
         }
         return self;
-    }
-
-    private int connectionInUseBy(ChordNode peer) {
-        if(peer == null) return 0;
-        return connectionInUseBy(peer.getHost());
-    }
-
-    private int connectionInUseBy(Host peer) {
-        if(ChordNode.equals(peer,self))
-            return 0;
-
-        int uses = 0;
-
-        if(ChordNode.equals(predecessor, peer))
-            uses++;
-
-        for (ChordNode finger : fingers)
-            if (ChordNode.equals(finger, peer))
-                uses++;
-
-        return uses;
     }
 
     private ChordNode getSuccessor() {
@@ -371,25 +346,29 @@ public class ChordProtocol extends BaseProtocol {
     private void setPredecessor(ChordNode predecessor) {
         if(ChordNode.equals(predecessor,this.predecessor)) return;
 
-        if(connectionInUseBy(this.predecessor) == 1)
+        if(channel.decrementConnectionUses(this.predecessor.getHost()) == 0)
             breakConnection(this.predecessor.getHost());
 
         this.predecessor = predecessor;
 
-        if(!ChordNode.equals(predecessor,self))
+        if(!ChordNode.equals(predecessor,self)) {
             mendConnection(predecessor.getHost());
+            channel.incrementConnectionUses(predecessor.getHost());
+        }
     }
 
     private void setFinger(int i, ChordNode finger) {
         if(ChordNode.equals(finger,this.fingers[i])) return;
 
-        if(connectionInUseBy(this.fingers[i]) == 1)
+        if(channel.decrementConnectionUses(this.fingers[i].getHost()) == 0)
             breakConnection(this.fingers[i].getHost());
 
         this.fingers[i] = finger;
 
-        if(!ChordNode.equals(finger,self))
+        if(!ChordNode.equals(finger,self)) {
             mendConnection(finger.getHost());
+            channel.incrementConnectionUses(finger.getHost());
+        }
     }
 
     /*---------------------------------------- Debug ---------------------------------- */

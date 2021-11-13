@@ -10,56 +10,47 @@ import java.math.BigInteger;
 
 public class ChordKey implements Comparable<ChordKey> {
 
-    public final BigInteger full;
-    public final BigInteger ringPosition;
+    public final BigInteger id;
 
-    public static ChordKey of(String seed) {
-        BigInteger full = HashGenerator.generateHash(seed).abs();
-        BigInteger compact = full.shiftRight(full.bitLength() - ChordProtocol.M);
-        return new ChordKey(full,compact);
+    public ChordKey(String seed) {
+        BigInteger hash = HashGenerator.generateHash(seed).abs();
+        id = hash.shiftRight(Math.max(0, hash.bitLength() - 160));
     }
 
-    public static ChordKey of(ChordSegment segment) {
-        return new ChordKey(BigInteger.ZERO,segment.ringPosition);
+    public ChordKey(ChordSegment segment) {
+        this.id = segment.ringPosition;
     }
 
-    private ChordKey(BigInteger full, BigInteger ringPosition) {
-        this.full = full;
-        this.ringPosition = ringPosition;
+    public ChordKey(BigInteger id) {
+        this.id = id;
     }
 
-    public ChordKey getKeyAfterRingLoop(BigInteger ringSize) {
-        return new ChordKey(full, ringPosition.add(ringSize));
+    public ChordKey getKeyAfterRingLoop() {
+        return new ChordKey(id.add(BigInteger.TWO.pow(160)));
     }
 
     @Override
     public int compareTo(ChordKey other) {
-        int e = ringPosition.compareTo(other.ringPosition);
-        if(e == 0)
-            return full.compareTo(other.full);
-        else
-            return e;
+        return id.compareTo(other.id);
     }
 
     @Override
     public String toString() {
         return "ChordKey{" +
-                "full=" + full +
-                ", ringPosition=" + ringPosition +
+                "id=" + id +
                 '}';
     }
 
     public static ISerializer<ChordKey> serializer = new ISerializer<>() {
         public void serialize(ChordKey node, ByteBuf out) {
-            byte[] full = node.full.toByteArray();
-            out.writeInt(full.length);
-            out.writeBytes(full);
+            byte[] idBytes = node.id.toByteArray();
+            out.writeInt(idBytes.length);
+            out.writeBytes(idBytes);
         }
 
         public ChordKey deserialize(ByteBuf in) {
-            BigInteger full = new BigInteger(ByteBufUtil.getBytes(in.readBytes(in.readInt())));
-            BigInteger ringPosition = full.shiftRight(full.bitLength() - ChordProtocol.M);
-            return new ChordKey(full, ringPosition);
+            BigInteger id = new BigInteger(ByteBufUtil.getBytes(in.readBytes(in.readInt())));
+            return new ChordKey(id);
         }
     };
 

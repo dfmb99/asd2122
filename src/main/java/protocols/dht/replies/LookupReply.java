@@ -1,10 +1,8 @@
 package protocols.dht.replies;
 
 import protocols.dht.chord.types.ChordNode;
-import protocols.dht.kademlia.types.KademliaNode;
 import pt.unl.fct.di.novasys.babel.generic.ProtoReply;
 
-import java.util.List;
 import java.util.UUID;
 
 public class LookupReply extends ProtoReply {

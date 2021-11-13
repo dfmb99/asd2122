@@ -11,8 +11,12 @@ public class ChordSegment implements Comparable<ChordSegment> {
     public final BigInteger ringPosition;
     public final int fingerIndex;
 
-    public static ChordSegment of(ChordKey node, int fingerIndex) {
-        return new ChordSegment(node.ringPosition.add(BigInteger.TWO.pow(fingerIndex)), fingerIndex);
+    public ChordSegment(ChordKey node, int fingerIndex) {
+        this.ringPosition = (node.id.add(BigInteger.TWO.pow(fingerIndex))).mod(BigInteger.TWO.pow(160));  // (n + indice + 2^80 ) % 2^160
+
+
+
+        this.fingerIndex = fingerIndex;
     }
 
     private ChordSegment(BigInteger ringPosition, int fingerIndex) {
@@ -35,9 +39,9 @@ public class ChordSegment implements Comparable<ChordSegment> {
 
     public static ISerializer<ChordSegment> serializer = new ISerializer<>() {
         public void serialize(ChordSegment segment, ByteBuf out) {
-            byte[] ringLocationBytes = segment.ringPosition.toByteArray();
-            out.writeInt(ringLocationBytes.length);
-            out.writeBytes(ringLocationBytes);
+            byte[] ringPositionBytes = segment.ringPosition.toByteArray();
+            out.writeInt(ringPositionBytes.length);
+            out.writeBytes(ringPositionBytes);
             out.writeInt(segment.fingerIndex);
         }
 
