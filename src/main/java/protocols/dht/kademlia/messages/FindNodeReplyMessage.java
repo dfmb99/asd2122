@@ -1,6 +1,7 @@
 package protocols.dht.kademlia.messages;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import protocols.dht.kademlia.types.KademliaNode;
 import protocols.dht.kademlia.types.Node;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
@@ -62,7 +63,7 @@ public class FindNodeReplyMessage extends ProtoMessage {
 
         @Override
         public FindNodeReplyMessage deserialize(ByteBuf in) throws IOException {
-            BigInteger id = new BigInteger(in.readBytes(in.readInt()).array());
+            BigInteger id = new BigInteger(ByteBufUtil.getBytes(in.readBytes(in.readInt())));
             int size = in.readInt();
             SortedSet<KademliaNode> closestNodes = new TreeSet<>();
             for(int i = 0; i < size; i++){

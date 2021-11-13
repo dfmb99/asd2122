@@ -10,7 +10,9 @@ import protocols.dht.kademlia.messages.PingReplyMessage;
 import protocols.dht.kademlia.timers.PingTimer;
 import protocols.dht.kademlia.types.KademliaNode;
 import protocols.dht.kademlia.types.Node;
+import protocols.dht.replies.LookupReply;
 import protocols.dht.requests.LookupRequest;
+import protocols.storage.StorageProtocol;
 import pt.unl.fct.di.novasys.babel.exceptions.HandlerRegistrationException;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.channel.tcp.events.*;
@@ -147,7 +149,8 @@ public class KademliaProtocol extends BaseProtocol {
 
             if(allClosestWereQueried(currentClosestK, finishedQueries)){
                 if(!msg.isBootstrapping()){
-                    //sendReply(); TODO: finish sending the reply to the StorageProtocol - alterar classe LookupReply para passar uma lista/set (kbuckets)
+                    //TODO: get original request lookup id,
+                    //sendReply(new LookupReply(LOOKUUP_REQ_ID, closest), StorageProtocol.PROTOCOL_ID);
                 }
                 if(msg.isBootstrapping() && msg.getLookupId().equals(HashGenerator.generateHash(self.toString()))){ // findNode of himself
                     populateRoutingTable();

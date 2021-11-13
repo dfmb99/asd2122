@@ -1,6 +1,7 @@
 package protocols.dht.kademlia.messages;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.network.ISerializer;
 
@@ -36,7 +37,7 @@ public class FindNodeMessage extends ProtoMessage {
 
     public static ISerializer<FindNodeMessage> serializer = new ISerializer<>() {
         @Override
-        public void serialize(FindNodeMessage sampleMessage, ByteBuf out) throws IOException {
+        public void serialize(FindNodeMessage sampleMessage, ByteBuf out) {
             byte[] keyBytes = sampleMessage.id.toByteArray();
             out.writeInt(keyBytes.length);
             out.writeBytes(keyBytes);
@@ -44,8 +45,8 @@ public class FindNodeMessage extends ProtoMessage {
         }
 
         @Override
-        public FindNodeMessage deserialize(ByteBuf in) throws IOException {
-            BigInteger id = new BigInteger(in.readBytes(in.readInt()).array());
+        public FindNodeMessage deserialize(ByteBuf in) {
+            BigInteger id = new BigInteger(ByteBufUtil.getBytes(in.readBytes(in.readInt())));
             boolean bootstrapping = in.readBoolean();
             return new FindNodeMessage(id, bootstrapping);
         }
