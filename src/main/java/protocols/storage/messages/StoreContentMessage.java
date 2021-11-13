@@ -2,6 +2,7 @@ package protocols.storage.messages;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
+import protocols.storage.StorageProtocol;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.network.ISerializer;
 
@@ -54,10 +55,12 @@ public class StoreContentMessage extends ProtoMessage {
             out.writeBytes(nameBytes);
             out.writeInt(sampleMessage.content.length);
             out.writeBytes(sampleMessage.content);
+            StorageProtocol.logger.info("Message sent with size {}", out.readableBytes());
         }
 
         @Override
         public StoreContentMessage deserialize(ByteBuf in) {
+            StorageProtocol.logger.info("Message received with size {}", in.readableBytes());
             UUID requestId = new UUID(in.readLong(), in.readLong());
             String name = new String(ByteBufUtil.getBytes(in.readBytes(in.readInt())), StandardCharsets.ISO_8859_1);
             byte[] content = ByteBufUtil.getBytes(in.readBytes(in.readInt()));

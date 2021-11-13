@@ -1,6 +1,7 @@
 package protocols.dht.chord.messages.overlay;
 
 import io.netty.buffer.ByteBuf;
+import protocols.dht.chord.ChordProtocol;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.network.ISerializer;
 
@@ -21,10 +22,13 @@ public class KeepAliveMessage extends ProtoMessage {
 
     public static ISerializer<KeepAliveMessage> serializer = new ISerializer<>() {
         @Override
-        public void serialize(KeepAliveMessage sampleMessage, ByteBuf out) {}
+        public void serialize(KeepAliveMessage sampleMessage, ByteBuf out) {
+            ChordProtocol.logger.info("Message sent with size {}", out.readableBytes());
+        }
 
         @Override
         public KeepAliveMessage deserialize(ByteBuf in) {
+            ChordProtocol.logger.info("Message received with size {}", in.readableBytes());
             return new KeepAliveMessage();
         }
     };

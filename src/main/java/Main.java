@@ -52,21 +52,20 @@ public class Main {
         //KademliaProtocol dht = new KademliaProtocol(props, myself);
 
         //Register applications in babel
-        //babel.registerProtocol(app);
-        //babel.registerProtocol(storage);
+        babel.registerProtocol(app);
+        babel.registerProtocol(storage);
         babel.registerProtocol(dht);
 
         //Init the protocols. This should be done after creating all protocols, since there can be inter-protocol
         //communications in this step.
-        //app.init(props);
-        //storage.init(props);
+        app.init(props);
+        storage.init(props);
         dht.init(props);
 
         //Start babel and protocol threads
         babel.start();
 
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> logger.info("Goodbye")));
-
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> logger.debug("Goodbye")));
     }
 
 }

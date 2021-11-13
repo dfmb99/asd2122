@@ -28,7 +28,7 @@ import java.util.*;
 
 public class ChordProtocol extends BaseProtocol {
 
-    private static final Logger logger = LogManager.getLogger(ChordProtocol.class);
+    public static final Logger logger = LogManager.getLogger(ChordProtocol.class);
 
     public static final short PROTOCOL_ID = 20;
     public static final String PROTOCOL_NAME = "ChordProtocol";
@@ -48,6 +48,7 @@ public class ChordProtocol extends BaseProtocol {
         this.bIsInsideRing = false;
 
         int numberOfFingers = Math.min(numberOfNodes-1, 2*(int)(Math.log(numberOfNodes) / Math.log(2)));
+        ChordSegment.numberOfFingers = numberOfFingers;
 
         this.self = new ChordNode(self);
         this.predecessor = this.self;
@@ -131,13 +132,13 @@ public class ChordProtocol extends BaseProtocol {
         if (metricsInterval > 0)
             setupPeriodicTimer(new InfoTimer(), metricsInterval, metricsInterval);
 
-        logger.info("Hello, I am {}", self);
+        logger.debug("Hello, I am {}", self);
     }
 
     private void enterRing(Properties props) {
         if(!props.containsKey("contact")) {
             bIsInsideRing = true;
-            logger.info("Joined the ring {}", self.getHost());
+            logger.debug("Joined the ring {}", self.getHost());
             return;
         }
 
@@ -156,7 +157,7 @@ public class ChordProtocol extends BaseProtocol {
     /*--------------------------------- Join Ring -------------------------------------- */
 
     private void uponJoinRingMessage(JoinRingMessage msg, Host from, short sourceProto, int channelId) {
-        logger.info("Received {} from {}", msg, from);
+        logger.debug("Received {} from {}", msg, from);
         ChordNode node = msg.getNode();
         if(Ring.inBounds(node, self, getSuccessor())){
             dispatchMessage(new JoinRingReplyMessage(getSuccessor()), node.getHost());
@@ -168,10 +169,10 @@ public class ChordProtocol extends BaseProtocol {
     }
 
     private void uponJoinRingReplyMessage(JoinRingReplyMessage msg, Host from, short sourceProto, int channelId) {
-        logger.info("Received {} from {}", msg, from);
+        logger.debug("Received {} from {}", msg, from);
         setSuccessor(msg.getNode());
         bIsInsideRing = true;
-        logger.info("Joined the ring {}", self.getHost());
+        logger.debug("Joined the ring {}", self.getHost());
     }
 
 
@@ -184,19 +185,19 @@ public class ChordProtocol extends BaseProtocol {
     }
 
     private void uponGetPredecessorMessage(GetPredecessorMessage msg, Host from, short sourceProto, int channelId) {
-        logger.info("Received {} from {}", msg, from);
+        logger.debug("Received {} from {}", msg, from);
         dispatchMessage(new GetPredecessorReplyMessage(predecessor), from);
     }
 
     private void uponGetPredecessorReplyMessage(GetPredecessorReplyMessage msg, Host from, short sourceProto, int channelId) {
-        logger.info("Received {} from {}", msg, from);
+        logger.debug("Received {} from {}", msg, from);
         if(Ring.inBounds(msg.getPredecessor(), self, getSuccessor()) && !ChordNode.equals(msg.getPredecessor(),self))
             setSuccessor(msg.getPredecessor());
         dispatchMessageButNotToSelf(new NotifySuccessorMessage(), getSuccessor().getHost());
     }
 
     private void uponNotifySuccessorMessage(NotifySuccessorMessage msg, Host from, short sourceProto, int channelId) {
-        logger.info("Received {} from {}", msg, from);
+        logger.debug("Received {} from {}", msg, from);
         ChordNode node = new ChordNode(from);
 
         if(Ring.inBounds(node, predecessor, self))
@@ -222,7 +223,7 @@ public class ChordProtocol extends BaseProtocol {
     }
 
     private void uponRestoreFingerMessage(RestoreFingerMessage msg, Host from, short sourceProto, int channelId) {
-        logger.info("Received {} from {}", msg, from);
+        logger.debug("Received {} from {}", msg, from);
         if(Ring.inBounds(msg.getSegment(), self, getSuccessor()))
             dispatchMessage(new RestoreFingerReplyMessage(msg.getSegment(), getSuccessor()), msg.getHost());
         else {
@@ -232,7 +233,7 @@ public class ChordProtocol extends BaseProtocol {
     }
 
     private void uponRestoreFingerReplyMessage(RestoreFingerReplyMessage msg, Host from, short sourceProto, int channelId) {
-        logger.info("Received {} from {}", msg, from);
+        logger.debug("Received {} from {}", msg, from);
         if(Ring.inBounds(msg.getSegment(), self, msg.getNode()))
             setFinger(msg.getSegment().fingerIndex, msg.getNode());
     }
@@ -258,7 +259,7 @@ public class ChordProtocol extends BaseProtocol {
     @Override
     protected void uponOutConnectionFailed(OutConnectionFailed<ProtoMessage> event, int channelId) {
         Host host = event.getNode();
-        logger.info("Out Connection from {} to {} failed cause: {}", self, host, event.getCause());
+        logger.debug("Out Connection from {} to {} failed cause: {}", self, host, event.getCause());
         channel.openConnections.remove(host);
         channel.pendingConnections.remove(host);
         pendingMessages.remove(host);
@@ -283,7 +284,7 @@ public class ChordProtocol extends BaseProtocol {
     /*----------------------------------- Search --------------------------------------- */
 
     public void uponLookupRequest(LookupRequest request, short sourceProto) {
-        logger.info("Lookup request for {}", request.getName());
+        logger.debug("Lookup request for {}", request.getName());
         ChordKey key = new ChordKey(request.getName());
         if(Ring.inBounds(key, self, getSuccessor())){
             sendReply(new LookupReply(request.getRequestId(), getSuccessor().toNode()), StorageProtocol.PROTOCOL_ID);
@@ -298,7 +299,7 @@ public class ChordProtocol extends BaseProtocol {
     }
 
     private void UponFindSuccessorMessage(FindSuccessorMessage msg, Host from, short sourceProto, int channelId) {
-        logger.info("Received {} from {}", msg, from);
+        logger.debug("Received {} from {}", msg, from);
         if(Ring.inBounds(msg.getKey(), self, getSuccessor())){
             dispatchMessage(new FindSuccessorReplyMessage(msg.getRequestId(), msg.getKey(), getSuccessor()), msg.getHost());
         }
@@ -312,7 +313,7 @@ public class ChordProtocol extends BaseProtocol {
     }
 
     private void UponFindSuccessorReplyMessage(FindSuccessorReplyMessage msg, Host from, short sourceProto, int channelId) {
-        logger.info("Received {} from {}", msg, from);
+        logger.debug("Received {} from {}", msg, from);
         sendReply(new LookupReply(msg.getRequestId(), msg.getSuccessor().toNode()), StorageProtocol.PROTOCOL_ID);
     }
 
@@ -378,7 +379,7 @@ public class ChordProtocol extends BaseProtocol {
         sb.append("Predecessor: ").append(predecessor).append("\n");
         sb.append("Successor: ").append(getSuccessor()).append("\n");
         //sb.append(getMetrics()); //getMetrics returns an object with the number of events of each type processed by this protocol.
-        logger.info(sb);
+        logger.debug(sb);
     }
 
     protected void uponMessageFail(ProtoMessage msg, Host host, short destProto, Throwable throwable, int channelId) {

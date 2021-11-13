@@ -2,6 +2,7 @@ package protocols.dht.chord.messages.search;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
+import protocols.dht.chord.ChordProtocol;
 import protocols.dht.chord.types.ChordKey;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.network.ISerializer;
@@ -54,10 +55,12 @@ public class FindSuccessorMessage extends ProtoMessage {
             out.writeLong(sampleMessage.requestId.getLeastSignificantBits());
             ChordKey.serializer.serialize(sampleMessage.key, out);
             Host.serializer.serialize(sampleMessage.host, out);
+            ChordProtocol.logger.info("Message sent with size {}", out.readableBytes());
         }
 
         @Override
         public FindSuccessorMessage deserialize(ByteBuf in) throws IOException {
+            ChordProtocol.logger.info("Message received with size {}", in.readableBytes());
             UUID uid = new UUID(in.readLong(), in.readLong());
             ChordKey key = ChordKey.serializer.deserialize(in);
             Host host = Host.serializer.deserialize(in);

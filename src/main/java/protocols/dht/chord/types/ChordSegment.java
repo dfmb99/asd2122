@@ -8,13 +8,18 @@ import java.math.BigInteger;
 
 public class ChordSegment implements Comparable<ChordSegment> {
 
+    public static int numberOfFingers;
+
     public final BigInteger ringPosition;
     public final int fingerIndex;
 
     public ChordSegment(ChordKey node, int fingerIndex) {
-        this.ringPosition = (node.id.add(BigInteger.TWO.pow(fingerIndex))).mod(BigInteger.TWO.pow(160));  // (n + indice + 2^80 ) % 2^160
+        this.ringPosition = (node.id
+            .add(BigInteger.TWO.pow(80)))
+                .mod(BigInteger.TWO.pow(160))
+                    .divide(BigInteger.valueOf(numberOfFingers-fingerIndex));
 
-
+        // finger_position = ((node_position + 2^80) % 2^160) / (number_finger - finger_index)
 
         this.fingerIndex = fingerIndex;
     }

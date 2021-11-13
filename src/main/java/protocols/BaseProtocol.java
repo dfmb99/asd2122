@@ -75,29 +75,29 @@ public abstract class BaseProtocol extends GenericProtocol {
     protected void dispatchMessage(ProtoMessage message, Host host) {
 
         if(channel.openConnections.contains(host)) {
-            logger.info("Sent message {} from {} to {} ", message, self, host);
+            logger.debug("Sent message {} from {} to {} ", message, self, host);
             sendMessage(message, host);
         }
         else if(channel.pendingConnections.contains(host)) {
-            logger.info("Queued message {} from {} to {} ", message, self, host);
+            logger.debug("Queued message {} from {} to {} ", message, self, host);
             pendingMessages.get(host).add(message);
         }
         else {
             openConnection(host);
             channel.pendingConnections.add(host);
-            logger.info("Queued message {} from {} to {} ", message, self, host);
+            logger.debug("Queued message {} from {} to {} ", message, self, host);
             pendingMessages.put(host, Collections.synchronizedList(new LinkedList<>(Collections.singleton(message))));
         }
     }
 
     protected void uponOutConnectionUp(OutConnectionUp event, int channelId) {
         Host host = event.getNode();
-        logger.info("Out Connection from {} to {} is up", self, host);
+        logger.debug("Out Connection from {} to {} is up", self, host);
         channel.openConnections.add(host);
         channel.pendingConnections.remove(host);
 
         Optional.ofNullable(pendingMessages.get(host)).ifPresent(l -> l.forEach(m -> {
-            logger.info("Sent message {} from {} to {} ", m, self, host);
+            logger.debug("Sent message {} from {} to {} ", m, self, host);
             sendMessage(m, host);
         }));
 
@@ -106,7 +106,7 @@ public abstract class BaseProtocol extends GenericProtocol {
 
     protected void uponOutConnectionDown(OutConnectionDown event, int channelId) {
         Host host = event.getNode();
-        logger.info("Out Connection from {} to {} is down cause {}", self, host, event.getCause());
+        logger.debug("Out Connection from {} to {} is down cause {}", self, host, event.getCause());
         channel.openConnections.remove(host);
         channel.pendingConnections.remove(host);
         pendingMessages.remove(host);
@@ -115,7 +115,7 @@ public abstract class BaseProtocol extends GenericProtocol {
 
     protected void uponOutConnectionFailed(OutConnectionFailed<ProtoMessage> event, int channelId) {
         Host host = event.getNode();
-        logger.info("Out Connection from {} to {} failed cause: {}", self, host, event.getCause());
+        logger.debug("Out Connection from {} to {} failed cause: {}", self, host, event.getCause());
         channel.openConnections.remove(host);
         channel.pendingConnections.remove(host);
         pendingMessages.remove(host);
@@ -124,12 +124,12 @@ public abstract class BaseProtocol extends GenericProtocol {
 
     protected void uponInConnectionUp(InConnectionUp event, int channelId) {
         Host host = event.getNode();
-        logger.info("In Connection from {} to {}  is up", host, self);
+        logger.debug("In Connection from {} to {}  is up", host, self);
     }
 
 
     protected void uponInConnectionDown(InConnectionDown event, int channelId) {
         Host host = event.getNode();
-        logger.info("In Connection from {} to {} is down, cause: {}", host, self, event.getCause());
+        logger.debug("In Connection from {} to {} is down, cause: {}", host, self, event.getCause());
     }
 }

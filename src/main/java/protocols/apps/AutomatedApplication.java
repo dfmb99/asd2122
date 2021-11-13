@@ -115,7 +115,7 @@ public class AutomatedApplication extends GenericProtocol {
 	@Override
 	public void init(Properties props) {
 		//Generate Keys deterministically;
-		logger.info("Generating Keys");
+		logger.debug("Generating Keys");
 		for(int i = 1; i <= this.totalProcesses; i++) {
 			r = new Random(i);
 			for(int j = 0; j < numberContents; j++) {
@@ -130,17 +130,17 @@ public class AutomatedApplication extends GenericProtocol {
 		//reset Random
 		r = new Random(this.localIndex);
 		//Wait prepareTime seconds before starting
-		logger.info("Waiting...");
+		logger.debug("Waiting...");
 		setupTimer(new StartTimer(), prepareTime * 1000L);
 	}
 
 	private void uponStartTimer(StartTimer startTimer, long timerId) {
-		logger.info("Starting");
+		logger.debug("Starting");
 		byte[] content = new byte[this.payloadSize];
 		new Random(this.localIndex* 1000L + this.storedKeys).nextBytes(content);
 		StoreRequest request = new StoreRequest(this.myKeys.get(this.storedKeys), content);
 		sendRequest(request, storageProtoId);
-		logger.info("{}: Storing content with name: {} with size {} bytes (requestID {})", self, request.getName(), content.length, request.getRequestId());
+		logger.info("Sent request {}", request);
 		this.storeRequests++;
 	}
 
@@ -148,13 +148,14 @@ public class AutomatedApplication extends GenericProtocol {
 		String name = this.otherKeys.get(r.nextInt(this.otherKeys.size()));
 		
 		RetrieveRequest request = new RetrieveRequest(name);
-		logger.info("{}: Sending Retrieve request for content with key: {} (request ID {})", self, request.getName(), request.getRequestId());
+		logger.info("Sent request {}", request);
 		//And send it to the storage protocol
 		sendRequest(request, storageProtoId);
 		this.retrieveRequests++;
 	}
 
 	private void uponStoreOk(StoreOKReply reply, short sourceProto) {
+		logger.info("Received reply {}", reply);
 		this.storedKeys++;
 		this.storeRequestsCompleted++;
 		if(this.storedKeys >= this.numberContents) {
@@ -166,27 +167,30 @@ public class AutomatedApplication extends GenericProtocol {
 			byte[] content = new byte[this.payloadSize];
 			new Random(this.localIndex* 1000L +this.storedKeys).nextBytes(content);
 			StoreRequest request = new StoreRequest(this.myKeys.get(this.storedKeys), content);
+			logger.info("Sent request {}", request);
 			sendRequest(request, storageProtoId);
-			logger.info("{}: Storing content with name: {} with size {} bytes (requestID {})", self, request.getName(), content.length, request.getRequestId());
 			this.storeRequests++;
 		}
 	}
 	
 	private void uponRetrieveOK(RetrieveOKReply reply, short sourceProto) {
+		logger.info("Received reply {}", reply);
 		this.retrieveRequestsSuccessful++;
 	}
 	
 	private void uponRetrieveFailed(RetrieveFailedReply reply, short sourceProto) {
+		logger.info("Received reply {}", reply);
 		this.retrieveRequestsFailed++;
 	}
 
 	private void uponStopTimer(StopTimer stopTimer, long timerId) {
-		logger.info("Stopping broadcasts");
+		logger.debug("Stopping broadcasts");
 		this.cancelTimer(requestTimer);
 		setupTimer(new ExitTimer(), cooldownTime * 1000L);
 	}
+
 	private void uponExitTimer(ExitTimer exitTimer, long timerId) {
-		logger.info("Exiting...");
+		logger.debug("Exiting...");
 		logger.info("{}: Executed {} store requests.", self, this.storeRequests);
 		logger.info("{}: Completed {} store requests.", self, this.storeRequestsCompleted);
 		logger.info("{}: Executed {} retrieve requests.", self, this.retrieveRequests);
