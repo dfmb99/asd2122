@@ -1,8 +1,11 @@
 package protocols.dht.replies;
 
 import protocols.dht.chord.types.ChordNode;
+import protocols.dht.types.Node;
 import pt.unl.fct.di.novasys.babel.generic.ProtoReply;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 public class LookupReply extends ProtoReply {
@@ -10,28 +13,26 @@ public class LookupReply extends ProtoReply {
     public static final short REPLY_TYPE_ID = 200;
 
     private final UUID requestId;
-    private final ChordNode node;
-    private final List<KademliaNode> kad_nodes;
+    private final List<Node> nodes;
 
-    public LookupReply(UUID requestId, ChordNode node) {
+    public LookupReply(UUID requestId, Node node) {
         super(REPLY_TYPE_ID);
         this.requestId = requestId;
-        this.node = node;
-        this.kad_nodes = null;
+        this.nodes = new ArrayList<>();
+        nodes.add(node);
     }
 
-    public LookupReply(UUID requestId, List<KademliaNode> kad_nodes) {
+    public LookupReply(UUID requestId, List<Node> nodes) {
         super(REPLY_TYPE_ID);
         this.requestId = requestId;
-        this.node = null;
-        this.kad_nodes = kad_nodes;
+        this.nodes = nodes;
     }
 
     public UUID getRequestId() {
         return requestId;
     }
 
-    public ChordNode getNode() {
-        return node;
+    public List<Node> getNodes() {
+        return nodes;
     }
 }
