@@ -7,6 +7,7 @@ import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.network.ISerializer;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.UUID;
 
 public class FindSuccessorReplyMessage extends ProtoMessage {
@@ -15,13 +16,13 @@ public class FindSuccessorReplyMessage extends ProtoMessage {
 
     private final UUID requestId;
     private final ChordKey key;
-    private final ChordNode successor;
+    private final ChordNode[] successors;
 
-    public FindSuccessorReplyMessage(UUID requestId, ChordKey key, ChordNode successor) {
+    public FindSuccessorReplyMessage(UUID requestId, ChordKey key, ChordNode[] successors) {
         super(MSG_ID);
         this.requestId = requestId;
         this.key = key;
-        this.successor = successor;
+        this.successors = successors;
     }
 
     public UUID getRequestId() {
@@ -32,8 +33,8 @@ public class FindSuccessorReplyMessage extends ProtoMessage {
         return key;
     }
 
-    public ChordNode getSuccessor() {
-        return successor;
+    public ChordNode[] getSuccessors() {
+        return successors;
     }
 
     @Override
@@ -41,7 +42,7 @@ public class FindSuccessorReplyMessage extends ProtoMessage {
         return "FindSuccessorReplyMessage{" +
                 "requestId=" + requestId +
                 ", key=" + key +
-                ", successor=" + successor +
+                ", successors=" + Arrays.toString(successors) +
                 '}';
     }
 
@@ -51,15 +52,20 @@ public class FindSuccessorReplyMessage extends ProtoMessage {
             out.writeLong(sampleMessage.requestId.getMostSignificantBits());
             out.writeLong(sampleMessage.requestId.getLeastSignificantBits());
             ChordKey.serializer.serialize(sampleMessage.key, out);
-            ChordNode.serializer.serialize(sampleMessage.getSuccessor(), out);
+            out.writeInt(sampleMessage.successors.length);
+            for (int i=0; i<sampleMessage.successors.length; i++)
+                ChordNode.serializer.serialize(sampleMessage.successors[i], out);
         }
 
         @Override
         public FindSuccessorReplyMessage deserialize(ByteBuf in) throws IOException {
             UUID requestId = new UUID(in.readLong(), in.readLong());
             ChordKey key = ChordKey.serializer.deserialize(in);
-            ChordNode successor = ChordNode.serializer.deserialize(in);
-            return new FindSuccessorReplyMessage(requestId, key, successor);
+            int numberOfSuccessors = in.readInt();
+            ChordNode[] successors = new ChordNode[numberOfSuccessors];
+            for (int i=0; i<numberOfSuccessors; i++)
+                successors[i] = ChordNode.serializer.deserialize(in);
+            return new FindSuccessorReplyMessage(requestId, key, successors);
         }
     };
 }

@@ -23,7 +23,6 @@ import pt.unl.fct.di.novasys.network.data.Host;
 import protocols.dht.chord.types.Ring;
 
 import java.io.IOException;
-import java.math.BigInteger;
 import java.net.InetAddress;
 import java.util.*;
 
@@ -58,7 +57,7 @@ public class ChordProtocol extends BaseProtocol {
 
         this.fingerSegment = new ChordSegment[numberOfFingers];
         for(int i = 0; i<numberOfFingers; i++) {
-            fingerSegment[i] = ChordSegment.of(this.self.getId(), nextFinger);
+            fingerSegment[i] = new ChordSegment(this.self.getId(), nextFinger);
         }
 
         /*------------------------- Create TCP Channel -------------------------------- */

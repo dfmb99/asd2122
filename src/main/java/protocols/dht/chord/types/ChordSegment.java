@@ -11,8 +11,12 @@ public class ChordSegment implements Comparable<ChordSegment> {
     public final BigInteger ringPosition;
     public final int fingerIndex;
 
-    public static ChordSegment of(ChordKey node, int fingerIndex) {
-        return new ChordSegment(node.id.add(BigInteger.TWO.pow(fingerIndex)), fingerIndex);
+    public ChordSegment(ChordKey node, int fingerIndex) {
+        this.ringPosition = (node.id.add(BigInteger.TWO.pow(fingerIndex))).mod(BigInteger.TWO.pow(160));  // (n + indice + 2^80 ) % 2^160
+
+
+
+        this.fingerIndex = fingerIndex;
     }
 
     private ChordSegment(BigInteger ringPosition, int fingerIndex) {

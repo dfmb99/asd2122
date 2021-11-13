@@ -10,19 +10,19 @@ public class LookupReply extends ProtoReply {
     public static final short REPLY_TYPE_ID = 200;
 
     private final UUID requestId;
-    private final ChordNode node;
+    private final ChordNode[] nodes;
 
-    public LookupReply(UUID requestId, ChordNode node) {
+    public LookupReply(UUID requestId, ChordNode[] nodes) {
         super(REPLY_TYPE_ID);
         this.requestId = requestId;
-        this.node = node;
+        this.nodes = nodes;
     }
 
     public UUID getRequestId() {
         return requestId;
     }
 
-    public ChordNode getNode() {
-        return node;
+    public ChordNode[] getNodes() {
+        return nodes;
     }
 }
