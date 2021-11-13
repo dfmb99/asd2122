@@ -166,7 +166,7 @@ public class KademliaProtocol extends BaseProtocol {
                 if(!msg.isBootstrapping()){
                     UUID reqId = lookUpReqUids.get(id);
                     logger.info("Delivering reply to storage");
-                    //sendReply(new LookupReply(reqId, new LinkedList<>(currentClosestK)), StorageProtocol.PROTOCOL_ID);
+                    sendReply(new LookupReply(reqId, new TreeSet<Node>(currentClosestK)), StorageProtocol.PROTOCOL_ID);
                 }
                 if(msg.isBootstrapping() && msg.getLookupId().equals(HashGenerator.generateHash(self.toString()))){ // findNode of himself
                     populateRoutingTable();
