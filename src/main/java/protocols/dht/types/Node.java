@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.util.Objects;
 
+// comment
 public class Node {
 
     private final BigInteger id;
