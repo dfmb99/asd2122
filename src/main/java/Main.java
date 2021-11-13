@@ -46,20 +46,20 @@ public class Main {
         // Application
         AutomatedApplication app = new AutomatedApplication(myself, props, StorageProtocol.PROTOCOL_ID);
         // Storage Protocol
-        StorageProtocol storage = new StorageProtocol(props, myself, ChordProtocol.PROTOCOL_ID);
+        StorageProtocol storage = new StorageProtocol(props, myself, KademliaProtocol.PROTOCOL_ID);
         // DHT Protocol
-        ChordProtocol dht = new ChordProtocol(props, myself);
-        //KademliaProtocol dht = new KademliaProtocol(props, myself);
+        //ChordProtocol dht = new ChordProtocol(props, myself);
+        KademliaProtocol dht = new KademliaProtocol(props, myself);
 
         //Register applications in babel
-        //babel.registerProtocol(app);
-        //babel.registerProtocol(storage);
+        babel.registerProtocol(app);
+        babel.registerProtocol(storage);
         babel.registerProtocol(dht);
 
         //Init the protocols. This should be done after creating all protocols, since there can be inter-protocol
         //communications in this step.
-        //app.init(props);
-        //storage.init(props);
+        app.init(props);
+        storage.init(props);
         dht.init(props);
 
         //Start babel and protocol threads

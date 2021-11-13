@@ -6,7 +6,7 @@ import pt.unl.fct.di.novasys.network.ISerializer;
 
 public class PingReplyMessage extends ProtoMessage {
 
-    public final static short MSG_ID = 403;
+    public final static short MSG_ID = 303;
 
     Double uid;
 

@@ -1,6 +1,7 @@
 package protocols.dht.kademlia.types;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import protocols.dht.types.Node;
 import pt.unl.fct.di.novasys.network.ISerializer;
 import pt.unl.fct.di.novasys.network.data.Host;
@@ -61,7 +62,7 @@ public class KademliaNode extends Node implements Comparable<KademliaNode>{
 
         public KademliaNode deserialize(ByteBuf in) throws IOException {
             Host host = Host.serializer.deserialize(in);
-            BigInteger distance = new BigInteger(in.readBytes(in.readInt()).array());
+            BigInteger distance = new BigInteger(ByteBufUtil.getBytes(in.readBytes(in.readInt())));
             return new KademliaNode(distance, host);
         }
     };

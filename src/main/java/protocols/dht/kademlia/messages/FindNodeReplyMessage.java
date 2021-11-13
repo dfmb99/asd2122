@@ -14,7 +14,7 @@ import java.util.TreeSet;
 
 public class FindNodeReplyMessage extends ProtoMessage {
 
-    public final static short MSG_ID = 401;
+    public final static short MSG_ID = 301;
 
     private BigInteger id;  // id whose closestNodes are referring to
     private SortedSet<KademliaNode> closestNodes;
