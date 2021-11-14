@@ -170,7 +170,7 @@ public class StorageProtocol extends BaseProtocol {
     private void uponStoreContentReplyMessage(StoreContentReplyMessage msg, Host from, short sourceProto, int channelId) {
         logger.debug("Received {} from {}", msg, from);
         logger.debug("Stored content {} in {}", msg.getName(), from);
-        sendReply(new StoreOKReply(msg.getRequestId(), msg.getName()), AutomatedApplication.PROTO_ID);
+        sendReplyOnce(new StoreOKReply(msg.getRequestId(), msg.getName()), AutomatedApplication.PROTO_ID, msg.getRequestId().toString());
     }
 
     private void uponRetrieveContentMessage(RetrieveContentMessage msg, Host from, short sourceProto, int channelId) {

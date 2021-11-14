@@ -5,11 +5,22 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Scanner;
-import static java.time.temporal.ChronoUnit.MILLIS;
+
+import static java.time.temporal.ChronoUnit.*;
 
 public class Metrics {
 
-    public static final String result0 = "results_chord_20_nodes_1000_interval_100_size";
+    public static final int prepareTime = 120;
+    public static final int runTimeEnd = 240;
+    public static final int prepareTolerance = 350; //Adjust to minimum until no errors appear
+    public static final int runTolerance = 500; //Adjust to minimum until no errors appear
+
+    public static LocalTime startTime;
+
+    public static final String result1 = "results_chord_base/results";
+    public static final String result2 = "results_chord_rate_200/results";
+    public static final String result3 = "results_chord_rate_200_size_10k/results";
+    public static final String result4 = "results_chord_size_10k/results";
 
 
     public static float TotalMessagesReceived = 0;
@@ -21,15 +32,16 @@ public class Metrics {
     public static float StoreLatency = 0;
     public static float RetrieveLatency = 0;
 
-    public static Map<String, LocalTime> stored = new HashMap<>();
-    public static Map<String, LocalTime> retrieve = new HashMap<>();
+    public static Map<String, LocalTime> stored;
+    public static Map<String, LocalTime> retrieve;
 
     public static float numberOfRetrieveRequest = 0;
     public static float numberOfStoreRequest = 0;
 
+    public static boolean started = false;
 
-    public static void main(String[] args) throws Exception {
-        final File folder = new File(result0);
+    public static void main(String[] args) {
+        final File folder = new File(result3);
         listFilesForFolder(folder);
 
         System.out.println("TotalMessagesReceived: " + TotalMessagesReceived);
@@ -37,17 +49,57 @@ public class Metrics {
         System.out.println("TotalMessagesTransmitted: " + TotalMessagesTransmitted);
         System.out.println("BytesTransmitted: " + BytesTransmitted);
 
-        System.out.println("failedRetrieves: " + retrieve.keySet().size());
-        System.out.println("numberOfRetrieveRequest: " + numberOfRetrieveRequest);
-
         System.out.println("RecallRate: " + (numberOfRetrieveRequest - retrieve.keySet().size()) / numberOfRetrieveRequest);
         System.out.println("StoreLatency: " + StoreLatency/numberOfStoreRequest);
         System.out.println("RetrieveLatency: " + RetrieveLatency/numberOfRetrieveRequest);
+
+        System.out.println("numberOfRetrieveRequest: " + numberOfRetrieveRequest);
+        System.out.println("numberOfStoreRequest: " + numberOfStoreRequest);
     }
 
     public static void listFilesForFolder(final File folder) {
         for (final File fileEntry : Objects.requireNonNull(folder.listFiles())) {
-            parseFile(fileEntry);
+            stored = new HashMap<>();
+            retrieve = new HashMap<>();
+            started = false;
+            startTime = null;
+            parseFileByTime(fileEntry); // TODO use the parseFile() function for getting metrics of kadmelia
+        }
+    }
+
+    public static void parseFileByTime(File file) {
+        try {
+            Scanner myReader = new Scanner(file);
+            while (myReader.hasNextLine()) {
+                String line = myReader.nextLine();
+                LocalTime currentTime;
+
+                try {
+                    String[] timestamp = line.split("]")[0].replace("[","").split(",");
+                    currentTime = LocalTime.parse(timestamp[0]).plus(Long.parseLong(timestamp[1]), MILLIS);
+                } catch (Exception e) {
+                    if(line.contains("[") && line.contains("]")) {
+                        System.out.println("Timestamp parse error: " + line);
+                        System.exit(-1);
+                    }
+                    continue;
+                }
+
+                if(startTime == null) {
+                    startTime = currentTime;
+                }
+                else if(currentTime.isAfter(startTime.plus(prepareTime, SECONDS).minus(prepareTolerance, MILLIS))) {
+                    parseLine(line);
+                }
+                else if(currentTime.isAfter(startTime.plus(runTimeEnd, SECONDS).plus(runTolerance, MILLIS))) {
+                    myReader.close();
+                    return;
+                }
+            }
+            myReader.close();
+        } catch (Exception e) {
+            System.out.println(file.getName());
+            e.printStackTrace();
         }
     }
 
@@ -55,12 +107,27 @@ public class Metrics {
         try {
             Scanner myReader = new Scanner(file);
             while (myReader.hasNextLine()) {
-                parseLine(myReader.nextLine());
+                String line = myReader.nextLine();
+                if(stopCondition(line)) {
+                    myReader.close();
+                    return;
+                }
+                if(!started) startCondition(line);
+                else parseLine(line);
             }
             myReader.close();
         } catch (Exception e) {
+            System.out.println(file.getName());
             e.printStackTrace();
         }
+    }
+
+    public static void startCondition(String line) {
+        started = line.contains("Starting");
+    }
+
+    public static boolean stopCondition(String line) {
+        return line.contains("Stopping");
     }
 
     public static void parseLine(String line) {
@@ -93,6 +160,8 @@ public class Metrics {
             String[] timestamp = h[0].replace("[","").replace("]","").split(",");
             String requestId = h[1].split(",")[0].split("=")[1];
             LocalTime oldTime = stored.remove(requestId);
+            if(oldTime == null)
+                System.out.println(requestId);
             LocalTime time = LocalTime.parse(timestamp[0]).plus(Long.parseLong(timestamp[1]), MILLIS);
             StoreLatency += MILLIS.between(oldTime, time);
         }
@@ -101,6 +170,8 @@ public class Metrics {
             String[] timestamp = h[0].replace("[","").replace("]","").split(",");
             String requestId = h[1].split(",")[0].split("=")[1];
             LocalTime oldTime = retrieve.remove(requestId);
+            if(oldTime == null)
+                System.out.println(requestId);
             LocalTime time = LocalTime.parse(timestamp[0]).plus(Long.parseLong(timestamp[1]), MILLIS);
             RetrieveLatency += MILLIS.between(oldTime, time);
         }

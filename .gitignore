@@ -31,3 +31,7 @@ hs_err_pid*
 /.idea/modules.xml
 /.idea/vcs.xml
 /.idea/workspace.xml
+/results_chord_base/
+/results_chord_rate_200/
+/results_chord_rate_200_size_10k/
+/results_chord_size_10k/

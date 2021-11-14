@@ -183,7 +183,7 @@ public class AutomatedApplication extends GenericProtocol {
 	}
 
 	private void uponStopTimer(StopTimer stopTimer, long timerId) {
-		logger.debug("Stopping broadcasts");
+		logger.info("Stopping broadcasts");
 		this.cancelTimer(requestTimer);
 		setupTimer(new ExitTimer(), cooldownTime * 1000L);
 	}

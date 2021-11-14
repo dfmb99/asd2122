@@ -4,7 +4,10 @@ import notifications.ChannelCreated;
 import org.apache.logging.log4j.Logger;
 import pt.unl.fct.di.novasys.babel.core.GenericProtocol;
 import pt.unl.fct.di.novasys.babel.exceptions.HandlerRegistrationException;
+import pt.unl.fct.di.novasys.babel.exceptions.NoSuchProtocolException;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
+import pt.unl.fct.di.novasys.babel.generic.ProtoReply;
+import pt.unl.fct.di.novasys.babel.internal.IPCEvent;
 import pt.unl.fct.di.novasys.channel.tcp.TCPChannel;
 import pt.unl.fct.di.novasys.channel.tcp.events.*;
 import pt.unl.fct.di.novasys.network.data.Host;
@@ -22,6 +25,8 @@ public abstract class BaseProtocol extends GenericProtocol {
 
     protected final Map<Host, List<ProtoMessage>> pendingMessages;
 
+    private final Set<String> replies;
+
     public BaseProtocol(Host self, String protocolName, short protocolId, Logger logger) throws IOException {
         super(protocolName, protocolId);
 
@@ -29,6 +34,7 @@ public abstract class BaseProtocol extends GenericProtocol {
         this.self = self;
 
         pendingMessages = new HashMap<>();
+        replies = new HashSet<>();
     }
 
     @Override
@@ -87,6 +93,13 @@ public abstract class BaseProtocol extends GenericProtocol {
             channel.pendingConnections.add(host);
             logger.debug("Queued message {} from {} to {} ", message, self, host);
             pendingMessages.put(host, Collections.synchronizedList(new LinkedList<>(Collections.singleton(message))));
+        }
+    }
+
+    protected void sendReplyOnce(ProtoReply reply, short destination, String id) {
+        if(!replies.contains(id)) {
+            replies.add(id);
+            sendReply(reply, destination);
         }
     }
 
