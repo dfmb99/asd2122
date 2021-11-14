@@ -3,7 +3,6 @@ package protocols.dht.kademlia;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import protocols.BaseProtocol;
-import protocols.dht.chord.messages.overlay.KeepAliveMessage;
 import protocols.dht.kademlia.messages.FindNodeMessage;
 import protocols.dht.kademlia.messages.FindNodeReplyMessage;
 import protocols.dht.kademlia.messages.PingMessage;
@@ -157,7 +156,7 @@ public class KademliaProtocol extends BaseProtocol {
         SortedSet<KademliaNode> currentClosestK = this.currentClosestK.get(id);
         currentClosestK.addAll(peerClosestK);
 
-        if(totalReceivedReplies % beta == 0){
+        if(gotBetaReplies(totalReceivedReplies)){
             List<KademliaNode> closest = new LinkedList<>(currentClosestK);
             closest.sort(null);
             currentClosestK = new TreeSet<>(closest.subList(0, Math.min(k, closest.size())));
@@ -332,8 +331,6 @@ public class KademliaProtocol extends BaseProtocol {
     }
 
 
-
-
     private Host firstNotQueried(SortedSet<KademliaNode> closestK, Set<Host> finishedQueries, Set<Host> currentQueries){
         Iterator<KademliaNode> it = closestK.iterator();
         KademliaNode curr;
@@ -393,6 +390,10 @@ public class KademliaProtocol extends BaseProtocol {
             }
         }
         return true;
+    }
+
+    private boolean gotBetaReplies(int totalReceivedReplies){
+        return totalReceivedReplies % beta == 0;
     }
 
 
