@@ -3,7 +3,6 @@ package protocols.dht.kademlia;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import protocols.BaseProtocol;
-import protocols.dht.chord.messages.overlay.KeepAliveMessage;
 import protocols.dht.kademlia.messages.FindNodeMessage;
 import protocols.dht.kademlia.messages.FindNodeReplyMessage;
 import protocols.dht.kademlia.messages.PingMessage;
@@ -27,7 +26,7 @@ import java.util.*;
 
 public class KademliaProtocol extends BaseProtocol {
 
-    private static final Logger logger = LogManager.getLogger(KademliaProtocol.class);
+    public static final Logger logger = LogManager.getLogger(KademliaProtocol.class);
 
     public static final short PROTOCOL_ID = 30;
     public static final String PROTOCOL_NAME = "KademliaProtocol";
@@ -107,12 +106,12 @@ public class KademliaProtocol extends BaseProtocol {
     @Override
     public void init(Properties props) {
         buildRoutingTable(props);
-        logger.info("Hello, I am {}", self);
+        logger.debug("Hello, I am {}", self);
     }
 
 
     public void uponLookupRequest(LookupRequest request, short sourceProto) {
-        logger.info("Lookup request for {}", request.getName());
+        logger.debug("Lookup request for {}", request.getName());
 
         BigInteger id = HashGenerator.generateHash(request.getName());
         if(currentQueries.get(id) != null)  // If we are already performing a lookup for that id
@@ -124,7 +123,7 @@ public class KademliaProtocol extends BaseProtocol {
     }
 
     private void uponFindNodeMessage(FindNodeMessage msg, Host from, short sourceProto, int channelId) {
-        logger.info("Received {} from {}", msg, from);
+        logger.debug("Received {} from {}", msg, from);
 
         updateRoutingTable(from);
         SortedSet<KademliaNode> closestK = findKClosestNodes(msg.getLookUpId());
@@ -133,7 +132,7 @@ public class KademliaProtocol extends BaseProtocol {
 
 
     private void uponFindNodeReplyMessage(FindNodeReplyMessage msg, Host from, short sourceProto, int channelId) {
-        logger.info("Received {} from {}", msg, from);
+        logger.debug("Received {} from {}", msg, from);
 
         updateRoutingTable(from);
 
@@ -157,7 +156,7 @@ public class KademliaProtocol extends BaseProtocol {
         SortedSet<KademliaNode> currentClosestK = this.currentClosestK.get(id);
         currentClosestK.addAll(peerClosestK);
 
-        if(totalReceivedReplies % beta == 0){
+        if(gotBetaReplies(totalReceivedReplies)){
             List<KademliaNode> closest = new LinkedList<>(currentClosestK);
             closest.sort(null);
             currentClosestK = new TreeSet<>(closest.subList(0, Math.min(k, closest.size())));
@@ -165,8 +164,8 @@ public class KademliaProtocol extends BaseProtocol {
             if(allClosestWereQueried(currentClosestK, finishedQueries)){
                 if(!msg.isBootstrapping()){
                     UUID reqId = lookUpReqUids.get(id);
-                    logger.info("Delivering reply to storage");
-                    //sendReply(new LookupReply(reqId, new LinkedList<>(currentClosestK)), StorageProtocol.PROTOCOL_ID);
+                    logger.debug("Delivering reply to storage");
+                    sendReply(new LookupReply(reqId, new TreeSet<Node>(currentClosestK)), StorageProtocol.PROTOCOL_ID);
                 }
                 if(msg.isBootstrapping() && msg.getLookupId().equals(HashGenerator.generateHash(self.toString()))){ // findNode of himself
                     populateRoutingTable();
@@ -188,20 +187,20 @@ public class KademliaProtocol extends BaseProtocol {
     }
 
     private void uponPingMessage(PingMessage msg, Host from, short sourceProto, int channelId){
-        logger.info("Received {} from {}", msg, from);
+        logger.debug("Received {} from {}", msg, from);
 
         dispatchMessage(new PingReplyMessage(msg.getUid()), from);
     }
 
     private void uponPingReplyMessage(PingReplyMessage msg, Host from, short sourceProto, int channelId){
-        logger.info("Received {} from {}", msg, from);
+        logger.debug("Received {} from {}", msg, from);
 
         pingPendingToEnter.remove(msg.getUid());
         pingPendingToLeave.remove(msg.getUid());
     }
 
     private void uponPingTimer(PingTimer timer, long timerId){
-        logger.info("Ping {} timed out", timer);
+        logger.debug("Ping {} timed out", timer);
 
         Double pingUid = timer.getPingUid();
         Node enteringNode = pingPendingToEnter.remove(pingUid);
@@ -332,8 +331,6 @@ public class KademliaProtocol extends BaseProtocol {
     }
 
 
-
-
     private Host firstNotQueried(SortedSet<KademliaNode> closestK, Set<Host> finishedQueries, Set<Host> currentQueries){
         Iterator<KademliaNode> it = closestK.iterator();
         KademliaNode curr;
@@ -393,6 +390,10 @@ public class KademliaProtocol extends BaseProtocol {
             }
         }
         return true;
+    }
+
+    private boolean gotBetaReplies(int totalReceivedReplies){
+        return totalReceivedReplies % beta == 0;
     }
 
 

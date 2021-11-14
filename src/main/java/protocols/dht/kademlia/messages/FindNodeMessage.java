@@ -2,6 +2,8 @@ package protocols.dht.kademlia.messages;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
+import protocols.dht.chord.ChordProtocol;
+import protocols.dht.kademlia.KademliaProtocol;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.network.ISerializer;
 
@@ -42,10 +44,12 @@ public class FindNodeMessage extends ProtoMessage {
             out.writeInt(keyBytes.length);
             out.writeBytes(keyBytes);
             out.writeBoolean(sampleMessage.isBootstrapping);
+            KademliaProtocol.logger.info("Message sent with size {}", out.readableBytes());
         }
 
         @Override
         public FindNodeMessage deserialize(ByteBuf in) {
+            KademliaProtocol.logger.info("Message received with size {}", in.readableBytes());
             BigInteger id = new BigInteger(ByteBufUtil.getBytes(in.readBytes(in.readInt())));
             boolean bootstrapping = in.readBoolean();
             return new FindNodeMessage(id, bootstrapping);
