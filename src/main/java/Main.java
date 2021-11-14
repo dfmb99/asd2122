@@ -65,8 +65,7 @@ public class Main {
         //Start babel and protocol threads
         babel.start();
 
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> logger.info("Goodbye")));
-
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> logger.debug("Goodbye")));
     }
 
 }

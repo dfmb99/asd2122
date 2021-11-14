@@ -30,4 +30,12 @@ public class RetrieveOKReply extends ProtoReply {
 	public byte[] getContent() {
 		return content;
 	}
+
+	@Override
+	public String toString() {
+		return "RetrieveOKReply{" +
+				"requestId=" + requestId +
+				", name='" + name + '\'' +
+				'}';
+	}
 }

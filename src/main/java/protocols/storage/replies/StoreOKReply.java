@@ -24,5 +24,12 @@ public class StoreOKReply extends ProtoReply {
 	public String getName() {
 		return this.name;
 	}
-	
+
+	@Override
+	public String toString() {
+		return "StoreOKReply{" +
+				"requestId=" + requestId +
+				", name='" + name + '\'' +
+				'}';
+	}
 }

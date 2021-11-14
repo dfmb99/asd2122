@@ -1,0 +1,9 @@
+TotalMessagesReceived: 142087.0
+BytesReceived: 34
+TotalMessagesTransmitted: 142110.0
+BytesTransmitted: 45
+failedRetrieves: 8
+numberOfRetrieveRequest: 2400.0
+RecallRate: 0.99666667
+StoreLatency: 29.44125
+RetrieveLatency: 6.6766667

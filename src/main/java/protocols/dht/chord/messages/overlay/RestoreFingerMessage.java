@@ -2,6 +2,7 @@ package protocols.dht.chord.messages.overlay;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
+import protocols.dht.chord.ChordProtocol;
 import protocols.dht.chord.types.ChordSegment;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.network.ISerializer;
@@ -44,10 +45,12 @@ public class RestoreFingerMessage extends ProtoMessage {
         public void serialize(RestoreFingerMessage sampleMessage, ByteBuf out) throws IOException {
             ChordSegment.serializer.serialize(sampleMessage.segment,out);
             Host.serializer.serialize(sampleMessage.host, out);
+            ChordProtocol.logger.info("Message sent with size {}", out.readableBytes());
         }
 
         @Override
         public RestoreFingerMessage deserialize(ByteBuf in) throws IOException {
+            ChordProtocol.logger.info("Message received with size {}", in.readableBytes());
             ChordSegment segment = ChordSegment.serializer.deserialize(in);
             Host host = Host.serializer.deserialize(in);
             return new RestoreFingerMessage(segment, host);

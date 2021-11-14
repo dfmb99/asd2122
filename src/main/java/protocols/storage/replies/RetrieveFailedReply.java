@@ -25,4 +25,11 @@ public class RetrieveFailedReply extends ProtoReply {
 		return this.name;
 	}
 
+	@Override
+	public String toString() {
+		return "RetrieveFailedReply{" +
+				"requestId=" + requestId +
+				", name='" + name + '\'' +
+				'}';
+	}
 }

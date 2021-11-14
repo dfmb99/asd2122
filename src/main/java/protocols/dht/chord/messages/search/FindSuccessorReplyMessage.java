@@ -1,6 +1,7 @@
 package protocols.dht.chord.messages.search;
 
 import io.netty.buffer.ByteBuf;
+import protocols.dht.chord.ChordProtocol;
 import protocols.dht.chord.types.ChordKey;
 import protocols.dht.chord.types.ChordNode;
 import protocols.dht.types.Node;
@@ -54,10 +55,12 @@ public class FindSuccessorReplyMessage extends ProtoMessage {
             out.writeLong(sampleMessage.requestId.getLeastSignificantBits());
             ChordKey.serializer.serialize(sampleMessage.key, out);
             ChordNode.serializer.serialize(sampleMessage.successor, out);
+            ChordProtocol.logger.info("Message sent with size {}", out.readableBytes());
         }
 
         @Override
         public FindSuccessorReplyMessage deserialize(ByteBuf in) throws IOException {
+            ChordProtocol.logger.info("Message received with size {}", in.readableBytes());
             UUID requestId = new UUID(in.readLong(), in.readLong());
             ChordKey key = ChordKey.serializer.deserialize(in);
             ChordNode successor = ChordNode.serializer.deserialize(in);

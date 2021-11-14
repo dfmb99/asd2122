@@ -37,7 +37,6 @@ public class StoreRequest extends ProtoRequest {
 		return "StoreRequest{" +
 				"requestId=" + requestId +
 				", name='" + name + '\'' +
-				", content=" + Arrays.toString(content) +
 				'}';
 	}
 }

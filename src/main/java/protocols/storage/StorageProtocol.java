@@ -29,7 +29,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class StorageProtocol extends BaseProtocol {
 
-    private static final Logger logger = LogManager.getLogger(StorageProtocol.class);
+    public static final Logger logger = LogManager.getLogger(StorageProtocol.class);
 
     public static final String PROTOCOL_NAME = "StorageProtocol";
     public static final short PROTOCOL_ID = 40;
@@ -99,19 +99,19 @@ public class StorageProtocol extends BaseProtocol {
     /*----------------------------------- Requests Handler---------------------------------- */
 
     private void uponStoreRequest(StoreRequest request, short sourceProto) {
-        logger.info("Received request {}", request);
         LookupRequest lookupRequest = new LookupRequest(
                 request.getRequestId(), request.getName()
         );
+        logger.info("Lookup request {}", request.getRequestId());
         sendRequest(lookupRequest, dhtProtoId);
         pendingRequests.put(request.getRequestId(), request);
     }
 
     private void uponRetrieveRequest(RetrieveRequest request, short sourceProto) {
-        logger.info("Received request {}", request);
         LookupRequest lookupRequest = new LookupRequest(
                 request.getRequestId(), request.getName()
         );
+        logger.info("Lookup request {}", request.getRequestId());
         sendRequest(lookupRequest, dhtProtoId);
         pendingRequests.put(request.getRequestId(), request);
     }
@@ -119,6 +119,8 @@ public class StorageProtocol extends BaseProtocol {
     /*----------------------------------- Replies Handler ---------------------------------- */
 
     private void uponLookupReply(LookupReply result, short sourceProto) {
+        logger.info("Lookup reply {}", result.getRequestId());
+
         ProtoRequest request = pendingRequests.remove(result.getRequestId());
 
         if(request instanceof StoreRequest) {
@@ -127,7 +129,7 @@ public class StorageProtocol extends BaseProtocol {
             boolean selfIncluded = result.getNodes().stream().anyMatch(r -> r.getHost().equals(self));
             if(selfIncluded) {
                 storage.put(storeRequest.getName(), storeRequest.getContent());
-                logger.info("Stored content {} in myself", storeRequest.getName());
+                logger.debug("Stored content {} in myself", storeRequest.getName());
                 sendReply(new StoreOKReply(storeRequest.getRequestId(), storeRequest.getName()), AutomatedApplication.PROTO_ID);
             }
 
@@ -142,11 +144,11 @@ public class StorageProtocol extends BaseProtocol {
             if(selfIncluded) {
                 byte[] content = storage.get(retrieveRequest.getName());
                 if(content != null) {
-                    logger.info("Failed to retrieved content {} from myself", retrieveRequest.getName());
+                    logger.debug("Failed to retrieved content {} from myself", retrieveRequest.getName());
                     sendReply(new RetrieveOKReply(retrieveRequest.getRequestId(), retrieveRequest.getName(), content), AutomatedApplication.PROTO_ID);
                 }
                 else {
-                    logger.info("Retrieved content {} from myself", retrieveRequest.getName());
+                    logger.debug("Retrieved content {} from myself", retrieveRequest.getName());
                     sendReply(new RetrieveFailedReply(retrieveRequest.getRequestId(), retrieveRequest.getName()), AutomatedApplication.PROTO_ID);
                 }
             }
@@ -160,31 +162,31 @@ public class StorageProtocol extends BaseProtocol {
     /*---------------------------------------- Messages ---------------------------------- */
 
     private void uponStoreContentMessage(StoreContentMessage msg, Host from, short sourceProto, int channelId) {
-        logger.info("Received {} from {}", msg, from);
+        logger.debug("Received {} from {}", msg, from);
         storage.put(msg.getName(), msg.getContent());
         dispatchMessage(new StoreContentReplyMessage(msg.getRequestId(), msg.getName()), from);
     }
 
     private void uponStoreContentReplyMessage(StoreContentReplyMessage msg, Host from, short sourceProto, int channelId) {
-        logger.info("Received {} from {}", msg, from);
-        logger.info("Stored content {} in {}", msg.getName(), from);
+        logger.debug("Received {} from {}", msg, from);
+        logger.debug("Stored content {} in {}", msg.getName(), from);
         sendReply(new StoreOKReply(msg.getRequestId(), msg.getName()), AutomatedApplication.PROTO_ID);
     }
 
     private void uponRetrieveContentMessage(RetrieveContentMessage msg, Host from, short sourceProto, int channelId) {
-        logger.info("Received {} from {}", msg, from);
+        logger.debug("Received {} from {}", msg, from);
         byte[] content = storage.get(msg.getName());
         dispatchMessage(new RetrieveContentReplyMessage(msg.getRequestId(), msg.getName(), content == null, content), from);
     }
 
     private void uponRetrieveContentReplyMessage(RetrieveContentReplyMessage msg, Host from, short sourceProto, int channelId) {
-        logger.info("Received {} from {}", msg, from);
+        logger.debug("Received {} from {}", msg, from);
         if(!msg.isNotFound()) {
-            logger.info("Retrieved content {} from {}", msg.getName(), from);
+            logger.debug("Retrieved content {} from {}", msg.getName(), from);
             sendReply(new RetrieveOKReply(msg.getRequestId(), msg.getName(), msg.getContent()), AutomatedApplication.PROTO_ID);
         }
         else {
-            logger.info("Failed to retrieved content {} from {}", msg.getName(), from);
+            logger.debug("Failed to retrieved content {} from {}", msg.getName(), from);
             sendReply(new RetrieveFailedReply(msg.getRequestId(), msg.getName()), AutomatedApplication.PROTO_ID);
         }
     }
