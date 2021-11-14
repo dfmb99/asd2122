@@ -99,7 +99,6 @@ public class AutomatedApplication extends GenericProtocol {
 		this.myKeys = new ArrayList<>(this.numberContents);
 		this.otherKeys = new ArrayList<>(this.numberContents * (this.totalProcesses-1));
 		this.storedKeys = 0;
-
 	}
 
 	private void uponChannelCreated(ChannelCreated notification, short sourceProto) {

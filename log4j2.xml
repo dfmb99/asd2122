@@ -2,11 +2,11 @@
 <Configuration status="INFO" shutdownHook="disable">
     <Appenders>
         <Console name="Console" target="SYSTEM_OUT">
-				<PatternLayout pattern="%highlight{%level{length=1}[%d{HH:mm:ss,SSS}] [%t]%logger{0}:} %msg%n"/>
+            <PatternLayout pattern="[%d{HH:mm:ss,SSS}] %msg%n"/>
         </Console>
 
         <File name="MyFile" fileName="${sys:logFilename}.log" append="false" immediateFlush="true">
-            <PatternLayout pattern="%highlight{%level{length=1}[%d{HH:mm:ss,SSS}] [%t]%logger{0}:} %msg%n"/>
+            <PatternLayout pattern="[%d{HH:mm:ss,SSS}] %msg%n"/>
         </File>
 
     </Appenders>

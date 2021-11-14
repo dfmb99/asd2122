@@ -58,7 +58,7 @@ public class ChordProtocol extends BaseProtocol {
 
         this.fingerSegment = new ChordSegment[numberOfFingers];
         for(int i = 0; i<numberOfFingers; i++) {
-            fingerSegment[i] = new ChordSegment(this.self.getId(), nextFinger);
+            fingerSegment[i] = new ChordSegment(this.self.getId(), i);
         }
 
         /*------------------------- Create TCP Channel -------------------------------- */
