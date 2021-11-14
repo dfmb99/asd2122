@@ -7,7 +7,7 @@ import pt.unl.fct.di.novasys.network.ISerializer;
 
 public class PingMessage extends ProtoMessage {
 
-    public final static short MSG_ID = 402;
+    public final static short MSG_ID = 302;
 
     Double uid;
 

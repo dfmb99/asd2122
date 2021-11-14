@@ -10,7 +10,7 @@ import java.math.BigInteger;
 
 public class FindNodeMessage extends ProtoMessage {
 
-    public final static short MSG_ID = 400;
+    public final static short MSG_ID = 300;
 
     private BigInteger id;
     private boolean isBootstrapping;
