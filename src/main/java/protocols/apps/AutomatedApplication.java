@@ -37,8 +37,10 @@ public class AutomatedApplication extends GenericProtocol {
 	private final int numberContents;
 	//Size of the payload for contents stored (in bytes)
 	private final int payloadSize;
-	//Time to wait until starting sending messages
-	private final int prepareTime;
+	//Time to wait until starting storing messages
+	private final int storeTime;
+	//Time to wait until starting retrieving messages
+	private final int retrieveTime;
 	//Time to run before shutting down
 	private final int runTime;
 	//Time to wait until starting sending messages
@@ -76,7 +78,8 @@ public class AutomatedApplication extends GenericProtocol {
 		//Read configurations
 		this.numberContents = Integer.parseInt(properties.getProperty("content_number"), 20);
 		this.payloadSize = Integer.parseInt(properties.getProperty("payload_size"));
-		this.prepareTime = Integer.parseInt(properties.getProperty("prepare_time")); //in seconds
+		this.storeTime = Integer.parseInt(properties.getProperty("store_time")); //in seconds
+		this.retrieveTime = Integer.parseInt(properties.getProperty("retrieve_time")); //in seconds
 		this.cooldownTime = Integer.parseInt(properties.getProperty("cooldown_time")); //in seconds
 		this.runTime = Integer.parseInt(properties.getProperty("run_time")); //in seconds
 		this.requestInterval = Integer.parseInt(properties.getProperty("request_interval")); //in milliseconds
@@ -130,7 +133,7 @@ public class AutomatedApplication extends GenericProtocol {
 		r = new Random(this.localIndex);
 		//Wait prepareTime seconds before starting
 		logger.debug("Waiting...");
-		setupTimer(new StartTimer(), prepareTime * 1000L);
+		setupTimer(new StartTimer(), storeTime * 1000L);
 	}
 
 	private void uponStartTimer(StartTimer startTimer, long timerId) {
@@ -159,7 +162,7 @@ public class AutomatedApplication extends GenericProtocol {
 		this.storeRequestsCompleted++;
 		if(this.storedKeys >= this.numberContents) {
 			//Start requests periodically
-			requestTimer = setupPeriodicTimer(new RequestTimer(), 0, requestInterval);
+			requestTimer = setupPeriodicTimer(new RequestTimer(), retrieveTime, requestInterval);
 			//And setup the stop timer
 			setupTimer(new StopTimer(), runTime * 1000L);
 		} else {
