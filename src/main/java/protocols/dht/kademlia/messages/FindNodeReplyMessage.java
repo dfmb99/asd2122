@@ -66,7 +66,9 @@ public class FindNodeReplyMessage extends ProtoMessage {
         @Override
         public FindNodeReplyMessage deserialize(ByteBuf in) throws IOException {
             KademliaProtocol.logger.info("Message received with size {}", in.readableBytes());
-            BigInteger id = new BigInteger(ByteBufUtil.getBytes(in.readBytes(in.readInt())));
+            byte[] h = new byte[in.readInt()];
+            in.readBytes(h);
+            BigInteger id = new BigInteger(h);
             int size = in.readInt();
             SortedSet<KademliaNode> closestNodes = new TreeSet<>();
             for(int i = 0; i < size; i++){

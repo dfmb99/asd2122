@@ -62,7 +62,9 @@ public class KademliaNode extends Node implements Comparable<KademliaNode>{
 
         public KademliaNode deserialize(ByteBuf in) throws IOException {
             Host host = Host.serializer.deserialize(in);
-            BigInteger distance = new BigInteger(ByteBufUtil.getBytes(in.readBytes(in.readInt())));
+            byte[] h = new byte[in.readInt()];
+            in.readBytes(h);
+            BigInteger distance = new BigInteger(h);
             return new KademliaNode(distance, host);
         }
     };

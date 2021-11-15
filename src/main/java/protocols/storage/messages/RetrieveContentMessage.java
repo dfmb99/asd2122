@@ -8,6 +8,7 @@ import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.network.ISerializer;
 
 import java.io.IOException;
+import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
@@ -55,7 +56,9 @@ public class RetrieveContentMessage extends ProtoMessage {
         public RetrieveContentMessage deserialize(ByteBuf in) {
             StorageProtocol.logger.info("Message received with size {}", in.readableBytes());
             UUID requestId = new UUID(in.readLong(), in.readLong());
-            String name = new String(ByteBufUtil.getBytes(in.readBytes(in.readInt())), StandardCharsets.ISO_8859_1);
+            byte[] h = new byte[in.readInt()];
+            in.readBytes(h);
+            String name = new String(h, StandardCharsets.ISO_8859_1);
             return new RetrieveContentMessage(requestId, name);
         }
     };

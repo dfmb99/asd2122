@@ -50,7 +50,9 @@ public class FindNodeMessage extends ProtoMessage {
         @Override
         public FindNodeMessage deserialize(ByteBuf in) {
             KademliaProtocol.logger.info("Message received with size {}", in.readableBytes());
-            BigInteger id = new BigInteger(ByteBufUtil.getBytes(in.readBytes(in.readInt())));
+            byte[] h = new byte[in.readInt()];
+            in.readBytes(h);
+            BigInteger id = new BigInteger(h);
             boolean bootstrapping = in.readBoolean();
             return new FindNodeMessage(id, bootstrapping);
         }

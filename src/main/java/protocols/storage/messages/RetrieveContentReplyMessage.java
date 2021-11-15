@@ -73,10 +73,13 @@ public class RetrieveContentReplyMessage extends ProtoMessage {
         public RetrieveContentReplyMessage deserialize(ByteBuf in) {
             StorageProtocol.logger.info("Message received with size {}", in.readableBytes());
             UUID requestId = new UUID(in.readLong(), in.readLong());
-            String name = new String(ByteBufUtil.getBytes(in.readBytes(in.readInt())), StandardCharsets.ISO_8859_1);
+            byte[] h = new byte[in.readInt()];
+            in.readBytes(h);
+            String name = new String(h, StandardCharsets.ISO_8859_1);
             boolean bNotFound = in.readBoolean();
             if(!bNotFound) {
-                byte[] content = ByteBufUtil.getBytes(in.readBytes(in.readInt()));
+                byte[] content = new byte[in.readInt()];
+                in.readBytes(content);
                 return new RetrieveContentReplyMessage(requestId, name, false, content);
             }
             else {
