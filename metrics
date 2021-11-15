@@ -1,0 +1,44 @@
+
+""Chord_Base
+TotalMessagesReceived: 119389.0
+BytesReceived: 4803553
+TotalMessagesTransmitted: 119462.0
+BytesTransmitted: 6001155
+RecallRate: 0.9995833
+StoreLatency: 31.255
+RetrieveLatency: 8.475833
+numberOfRetrieveRequest: 2400.0
+numberOfStoreRequest: 800.0
+
+""Chord_rate_200
+TotalMessagesReceived: 236791.0
+BytesReceived: 34
+TotalMessagesTransmitted: 236878.0
+BytesTransmitted: 45
+RecallRate: 0.99975
+StoreLatency: 27.77375
+RetrieveLatency: 6.7955832
+numberOfRetrieveRequest: 12000.0
+numberOfStoreRequest: 800.0
+
+""Chord_rate_200_size_10k
+TotalMessagesReceived: 236786.0
+BytesReceived: 34
+TotalMessagesTransmitted: 236898.0
+BytesTransmitted: 45
+RecallRate: 0.9995
+StoreLatency: 31.81375
+RetrieveLatency: 12.36775
+numberOfRetrieveRequest: 12000.0
+numberOfStoreRequest: 800.0
+
+""chord_size_10k
+TotalMessagesReceived: 118575.0
+BytesReceived: 34
+TotalMessagesTransmitted: 118675.0
+BytesTransmitted: 45
+RecallRate: 1.0
+StoreLatency: 31.75375
+RetrieveLatency: 14.30375
+numberOfRetrieveRequest: 2400.0
+numberOfStoreRequest: 800.0
