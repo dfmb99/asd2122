@@ -62,7 +62,7 @@ public abstract class BaseProtocol extends GenericProtocol {
         if(!channel.openConnections.contains(host) && !channel.pendingConnections.contains(host)) {
             openConnection(host);
             channel.pendingConnections.add(host);
-            pendingMessages.put(host, Collections.synchronizedList(new LinkedList<>()));
+            pendingMessages.put(host, new LinkedList<>());
         }
     }
 
@@ -86,13 +86,17 @@ public abstract class BaseProtocol extends GenericProtocol {
         }
         else if(channel.pendingConnections.contains(host)) {
             logger.debug("Queued message {} from {} to {} ", message, self, host);
-            pendingMessages.get(host).add(message);
+            List<ProtoMessage> l =  pendingMessages.get(host);
+            if(l != null)
+                l.add(message);
+            else
+                pendingMessages.put(host, new LinkedList<>(Collections.singleton(message)));
         }
         else {
             openConnection(host);
             channel.pendingConnections.add(host);
             logger.debug("Queued message {} from {} to {} ", message, self, host);
-            pendingMessages.put(host, Collections.synchronizedList(new LinkedList<>(Collections.singleton(message))));
+            pendingMessages.put(host, new LinkedList<>(Collections.singleton(message)));
         }
     }
 
