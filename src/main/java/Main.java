@@ -28,6 +28,7 @@ public class Main {
 
     public static void main(String[] args) throws Exception {
 
+
         //Get the (singleton) babel instance
         Babel babel = Babel.getInstance();
 

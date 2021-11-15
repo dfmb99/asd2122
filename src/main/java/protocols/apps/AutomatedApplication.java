@@ -162,9 +162,9 @@ public class AutomatedApplication extends GenericProtocol {
 		this.storeRequestsCompleted++;
 		if(this.storedKeys >= this.numberContents) {
 			//Start requests periodically
-			requestTimer = setupPeriodicTimer(new RequestTimer(), retrieveTime, requestInterval);
+			requestTimer = setupPeriodicTimer(new RequestTimer(), retrieveTime * 1000L, requestInterval);
 			//And setup the stop timer
-			setupTimer(new StopTimer(), runTime * 1000L);
+			setupTimer(new StopTimer(), retrieveTime * 1000L + runTime * 1000L);
 		} else {
 			byte[] content = new byte[this.payloadSize];
 			new Random(this.localIndex* 1000L +this.storedKeys).nextBytes(content);
