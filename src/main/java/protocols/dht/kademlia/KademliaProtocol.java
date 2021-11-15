@@ -125,8 +125,8 @@ public class KademliaProtocol extends BaseProtocol {
     private void uponFindNodeMessage(FindNodeMessage msg, Host from, short sourceProto, int channelId) {
         logger.debug("Received {} from {}", msg, from);
 
-        updateRoutingTable(from);
         SortedSet<KademliaNode> closestK = findKClosestNodes(msg.getLookUpId());
+        updateRoutingTable(from);
         dispatchMessage(new FindNodeReplyMessage(msg.getLookUpId(), closestK, msg.isBootstrapping()), from);
     }
 
@@ -139,7 +139,7 @@ public class KademliaProtocol extends BaseProtocol {
         BigInteger id = msg.getLookupId();
         SortedSet<KademliaNode> peerClosestK = msg.getClosestNodes();
 
-        if(currentClosestK.get(id) == null) // reply relative to a lookUp req. already terminated
+        if(currentClosestK.get(id) == null && !msg.isBootstrapping()) // reply relative to a lookUp req. already terminated
         {
             return;
         }
@@ -166,9 +166,6 @@ public class KademliaProtocol extends BaseProtocol {
                     UUID reqId = lookUpReqUids.get(id);
                     logger.debug("Delivering reply to storage");
                     sendReply(new LookupReply(reqId, new TreeSet<Node>(currentClosestK)), StorageProtocol.PROTOCOL_ID);
-                }
-                if(msg.isBootstrapping() && msg.getLookupId().equals(HashGenerator.generateHash(self.toString()))){ // findNode of himself
-                    populateRoutingTable();
                 }
                 removeRequestState(id);
             }
@@ -239,7 +236,7 @@ public class KademliaProtocol extends BaseProtocol {
                 Node contactNode = new Node(new Host(InetAddress.getByName(hostElems[0]), Integer.parseInt(hostElems[1])));
                 BigInteger contactId = HashGenerator.generateHash(contactNode.getHost().toString());
                 findBucket(contactId).add(contactNode);
-                initRequestState(contactId);
+                initRequestState(self.getId());
                 dispatchMessage(new FindNodeMessage(self.getId(), true), contactNode.getHost());
 
             } catch (Exception e) {
@@ -287,7 +284,7 @@ public class KademliaProtocol extends BaseProtocol {
             }
 
             if(foundFirstNotEmpty){
-                BigInteger target = new BigInteger(String.valueOf(Math.pow(2, i)));
+                BigInteger target = new BigInteger(Integer.valueOf( (int) Math.pow(2, i)).toString());
                 initRequestState(target);
                 sendAlfaFindNodeMessages(target, true);
             }
