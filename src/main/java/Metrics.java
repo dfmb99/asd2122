@@ -12,11 +12,12 @@ public class Metrics {
 
     public static final int prepareTime = 120;
     public static final int runTimeEnd = 240;
-    public static final int prepareTolerance = 350; //Adjust to minimum until no errors appear
+    public static final int prepareTolerance = 500; //Adjust to minimum until no errors appear
     public static final int runTolerance = 500; //Adjust to minimum until no errors appear
 
     public static LocalTime startTime;
 
+    public static final String test = "test";
     public static final String result1 = "results_chord_base/results";
     public static final String result2 = "results_chord_rate_200/results";
     public static final String result3 = "results_chord_rate_200_size_10k/results";
@@ -41,7 +42,7 @@ public class Metrics {
     public static boolean started = false;
 
     public static void main(String[] args) {
-        final File folder = new File(result3);
+        final File folder = new File(test);
         listFilesForFolder(folder);
 
         System.out.println("TotalMessagesReceived: " + TotalMessagesReceived);
@@ -63,7 +64,7 @@ public class Metrics {
             retrieve = new HashMap<>();
             started = false;
             startTime = null;
-            parseFileByTime(fileEntry); // TODO use the parseFile() function for getting metrics of kadmelia
+            parseFile(fileEntry);
         }
     }
 
@@ -133,11 +134,11 @@ public class Metrics {
     public static void parseLine(String line) {
         if(line.contains("Message received with size")) {
             TotalMessagesReceived++;
-            BytesReceived = Long.parseLong(line.split("Message received with size ")[1]);
+            BytesReceived += Long.parseLong(line.split("Message received with size ")[1]);
         }
         else if(line.contains("Message sent with size")) {
             TotalMessagesTransmitted++;
-            BytesTransmitted = Long.parseLong(line.split("Message sent with size ")[1]);
+            BytesTransmitted += Long.parseLong(line.split("Message sent with size ")[1]);
         }
         else if(line.contains("Sent request StoreRequest")) {
             numberOfStoreRequest++;

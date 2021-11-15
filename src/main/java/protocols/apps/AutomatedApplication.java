@@ -134,7 +134,7 @@ public class AutomatedApplication extends GenericProtocol {
 	}
 
 	private void uponStartTimer(StartTimer startTimer, long timerId) {
-		logger.debug("Starting");
+		logger.info("Starting");
 		byte[] content = new byte[this.payloadSize];
 		new Random(this.localIndex* 1000L + this.storedKeys).nextBytes(content);
 		StoreRequest request = new StoreRequest(this.myKeys.get(this.storedKeys), content);
