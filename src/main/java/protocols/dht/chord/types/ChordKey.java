@@ -49,7 +49,9 @@ public class ChordKey implements Comparable<ChordKey> {
         }
 
         public ChordKey deserialize(ByteBuf in) {
-            BigInteger id = new BigInteger(ByteBufUtil.getBytes(in.readBytes(in.readInt())));
+            byte[] h = new byte[in.readInt()];
+            in.readBytes(h);
+            BigInteger id = new BigInteger(h);
             return new ChordKey(id);
         }
     };

@@ -51,7 +51,9 @@ public class ChordSegment implements Comparable<ChordSegment> {
         }
 
         public ChordSegment deserialize(ByteBuf in) {
-            BigInteger ringPosition = new BigInteger(ByteBufUtil.getBytes(in.readBytes(in.readInt())));
+            byte[] h = new byte[in.readInt()];
+            in.readBytes(h);
+            BigInteger ringPosition = new BigInteger(h);
             int fingerIndex = in.readInt();
             return new ChordSegment(ringPosition, fingerIndex);
         }
