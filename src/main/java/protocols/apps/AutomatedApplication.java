@@ -57,6 +57,8 @@ public class AutomatedApplication extends GenericProtocol {
 
 	private long requestTimer;
 
+	private boolean bStartedSendingRetrieveRequests;
+
 	//Variables related with the Workload
 	private Random r;
 	private List<String> myKeys;
@@ -83,6 +85,8 @@ public class AutomatedApplication extends GenericProtocol {
 		this.cooldownTime = Integer.parseInt(properties.getProperty("cooldown_time")); //in seconds
 		this.runTime = Integer.parseInt(properties.getProperty("run_time")); //in seconds
 		this.requestInterval = Integer.parseInt(properties.getProperty("request_interval")); //in milliseconds
+
+		this.bStartedSendingRetrieveRequests = false;
 
 		//Setup handlers
 		registerTimerHandler(RequestTimer.TIMER_ID, this::uponRequestTimer);
@@ -162,10 +166,13 @@ public class AutomatedApplication extends GenericProtocol {
 		this.storedKeys++;
 		this.storeRequestsCompleted++;
 		if(this.storedKeys >= this.numberContents) {
+			if(bStartedSendingRetrieveRequests) return;
+
+			bStartedSendingRetrieveRequests = true;
 			//Start requests periodically
 			requestTimer = setupPeriodicTimer(new RequestTimer(), retrieveTime * 1000L, requestInterval);
 			//And setup the stop timer
-			setupTimer(new StopTimer(), retrieveTime * 1000L + runTime * 1000L);
+			setupTimer(new StopTimer(), (retrieveTime + runTime)*1000L);
 		} else {
 			byte[] content = new byte[this.payloadSize];
 			new Random(this.localIndex* 1000L +this.storedKeys).nextBytes(content);
