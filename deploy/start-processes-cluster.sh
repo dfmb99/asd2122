@@ -21,7 +21,7 @@ while [ $i -lt $processes ]
 do
 	for node in $(oarprint host); do
 	  if [ $i -lt $processes ]; then
-		  oarsh $node "cd $pwd; nohup ./deploy/execute-local.sh $contactaddr $[$port+$i] $(($i + 1)) $pwd &"
+		  oarsh $node "cd $pwd; nohup ./deploy/execute-local.sh $contactaddr $[$port+$i] $i $pwd &"
       i=$[$i+1]
     fi
   done
