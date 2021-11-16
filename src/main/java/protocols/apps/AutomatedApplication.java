@@ -118,6 +118,7 @@ public class AutomatedApplication extends GenericProtocol {
 	public void init(Properties props) {
 		//Generate Keys deterministically;
 		logger.debug("Generating Keys");
+		logger.info("local index: {} total_processes: {}", this.localIndex, this.totalProcesses);
 		for(int i = 1; i <= this.totalProcesses; i++) {
 			r = new Random(i);
 			for(int j = 0; j < numberContents; j++) {
