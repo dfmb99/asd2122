@@ -5,18 +5,20 @@ import protocols.dht.kademlia.KademliaProtocol;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.network.ISerializer;
 
+import java.util.UUID;
+
 public class PingReplyMessage extends ProtoMessage {
 
     public final static short MSG_ID = 303;
 
-    Double uid;
+    UUID uid;
 
-    public PingReplyMessage(Double uid) {
+    public PingReplyMessage(UUID uid) {
         super(MSG_ID);
         this.uid = uid;
     }
 
-    public Double getUid(){
+    public UUID getUid(){
         return uid;
     }
 
@@ -28,14 +30,15 @@ public class PingReplyMessage extends ProtoMessage {
     public static ISerializer<PingReplyMessage> serializer = new ISerializer<>() {
         @Override
         public void serialize(PingReplyMessage sampleMessage, ByteBuf out) {
-            out.writeDouble(sampleMessage.getUid());
+            out.writeLong(sampleMessage.uid.getMostSignificantBits());
+            out.writeLong(sampleMessage.uid.getLeastSignificantBits());
             KademliaProtocol.logger.info("Message sent with size {}", out.readableBytes());
         }
 
         @Override
         public PingReplyMessage deserialize(ByteBuf in) {
             KademliaProtocol.logger.info("Message received with size {}", in.readableBytes());
-            Double uid = in.readDouble();
+            UUID uid = new UUID(in.readLong(), in.readLong());
             return new PingReplyMessage(uid);
         }
     };

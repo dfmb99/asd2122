@@ -2,18 +2,20 @@ package protocols.dht.kademlia.timers;
 
 import pt.unl.fct.di.novasys.babel.generic.ProtoTimer;
 
+import java.util.UUID;
+
 public class PingTimer extends ProtoTimer {
 
     public static final short TIMER_ID = 400;
 
-    private Double pingUid;
+    private UUID pingUid;
 
-    public PingTimer(Double pingUid) {
+    public PingTimer(UUID pingUid) {
         super(TIMER_ID);
         this.pingUid = pingUid;
     }
 
-    public Double getPingUid() {
+    public UUID getPingUid() {
         return pingUid;
     }
 

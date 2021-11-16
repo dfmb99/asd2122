@@ -133,7 +133,7 @@ public class AutomatedApplication extends GenericProtocol {
 					this.otherKeys.add(key);
 				}
 			}
-		}	
+		}
 		//reset Random
 		r = new Random(this.localIndex);
 		//Wait prepareTime seconds before starting

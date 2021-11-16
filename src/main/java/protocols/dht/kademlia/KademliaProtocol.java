@@ -14,7 +14,6 @@ import protocols.dht.types.Node;
 import protocols.dht.requests.LookupRequest;
 import protocols.storage.StorageProtocol;
 import pt.unl.fct.di.novasys.babel.exceptions.HandlerRegistrationException;
-import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.channel.tcp.events.*;
 import pt.unl.fct.di.novasys.network.data.Host;
 import utils.HashGenerator;
@@ -46,8 +45,8 @@ public class KademliaProtocol extends BaseProtocol {
     private final Map<BigInteger, SortedSet<KademliaNode>> currentClosestK; // map of current list of closest k nodes
     private final Map<BigInteger, Integer> receivedReplies; // keeps track of the number of received replies to know if we already got beta replies
 
-    private final Map<Double, Node> pingPendingToLeave; // keeps track of nodes waiting for a ping reply/fail to leave our kbuckets
-    private final Map<Double, Node> pingPendingToEnter; // keeps track of nodes waiting for a ping reply/fail to enter our kbuckets
+    private final Map<UUID, Node> pingPendingToLeave; // keeps track of nodes waiting for a ping reply/fail to leave our kbuckets
+    private final Map<UUID, Node> pingPendingToEnter; // keeps track of nodes waiting for a ping reply/fail to enter our kbuckets
 
     private final Map<BigInteger, UUID> lookUpReqUids;
 
@@ -199,7 +198,7 @@ public class KademliaProtocol extends BaseProtocol {
     private void uponPingTimer(PingTimer timer, long timerId){
         logger.debug("Ping {} timed out", timer);
 
-        Double pingUid = timer.getPingUid();
+        UUID pingUid = timer.getPingUid();
         Node enteringNode = pingPendingToEnter.remove(pingUid);
         Node leavingNode = pingPendingToLeave.remove(pingUid);
 
@@ -257,7 +256,7 @@ public class KademliaProtocol extends BaseProtocol {
             }
             else{ // bucket full
                 Node oldest = bucket.get(0); // get the head/oldest
-                Double pingUid = Math.random();
+                UUID pingUid = UUID.randomUUID();
                 dispatchRetryMessage(new PingMessage(pingUid), oldest.getHost());
                 setupTimer(new PingTimer(pingUid), pingTimeout);
                 pingPendingToLeave.put(pingUid, oldest);
