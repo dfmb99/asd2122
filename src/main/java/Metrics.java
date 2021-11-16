@@ -10,19 +10,9 @@ import static java.time.temporal.ChronoUnit.*;
 
 public class Metrics {
 
-    public static final int prepareTime = 120;
-    public static final int runTimeEnd = 240;
-    public static final int prepareTolerance = 500; //Adjust to minimum until no errors appear
-    public static final int runTolerance = 500; //Adjust to minimum until no errors appear
-
     public static LocalTime startTime;
 
-    public static final String test = "test";
-    public static final String result1 = "results_chord_base/results";
-    public static final String result2 = "results_chord_rate_200/results";
-    public static final String result3 = "results_chord_rate_200_size_10k/results";
-    public static final String result4 = "results_chord_size_10k/results";
-
+    public static final String test = "results/results";
 
     public static float TotalMessagesReceived = 0;
     public static long BytesReceived = 0;
@@ -65,42 +55,6 @@ public class Metrics {
             started = false;
             startTime = null;
             parseFile(fileEntry);
-        }
-    }
-
-    public static void parseFileByTime(File file) {
-        try {
-            Scanner myReader = new Scanner(file);
-            while (myReader.hasNextLine()) {
-                String line = myReader.nextLine();
-                LocalTime currentTime;
-
-                try {
-                    String[] timestamp = line.split("]")[0].replace("[","").split(",");
-                    currentTime = LocalTime.parse(timestamp[0]).plus(Long.parseLong(timestamp[1]), MILLIS);
-                } catch (Exception e) {
-                    if(line.contains("[") && line.contains("]")) {
-                        System.out.println("Timestamp parse error: " + line);
-                        System.exit(-1);
-                    }
-                    continue;
-                }
-
-                if(startTime == null) {
-                    startTime = currentTime;
-                }
-                else if(currentTime.isAfter(startTime.plus(prepareTime, SECONDS).minus(prepareTolerance, MILLIS))) {
-                    parseLine(line);
-                }
-                else if(currentTime.isAfter(startTime.plus(runTimeEnd, SECONDS).plus(runTolerance, MILLIS))) {
-                    myReader.close();
-                    return;
-                }
-            }
-            myReader.close();
-        } catch (Exception e) {
-            System.out.println(file.getName());
-            e.printStackTrace();
         }
     }
 
@@ -165,6 +119,7 @@ public class Metrics {
                 System.out.println(requestId);
             LocalTime time = LocalTime.parse(timestamp[0]).plus(Long.parseLong(timestamp[1]), MILLIS);
             StoreLatency += MILLIS.between(oldTime, time);
+            System.out.println(MILLIS.between(oldTime, time));
         }
         else if(line.contains("Received reply RetrieveOKReply")) {
             String[] h = line.split(" Received reply RetrieveOKReply");
