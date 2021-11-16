@@ -209,11 +209,6 @@ public class KademliaProtocol extends BaseProtocol {
     }
 
 
-    protected void uponMessageFail(ProtoMessage msg, Host host, short destProto, Throwable throwable, int channelId) {
-        logger.error("Message {} to {} failed, reason: {}", msg, host, throwable);
-    }
-
-
 
     /*----------------------------------- Aux ---------------------------------------- */
 

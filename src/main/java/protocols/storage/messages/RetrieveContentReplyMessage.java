@@ -48,8 +48,7 @@ public class RetrieveContentReplyMessage extends ProtoMessage {
         return "RetrieveContentReplyMessage{" +
                 "requestId=" + requestId +
                 ", name='" + name + '\'' +
-                ", bNotFound=" + notFound +
-                ", content=" + Arrays.toString(content) +
+                ", notFound=" + notFound +
                 '}';
     }
 

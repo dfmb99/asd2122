@@ -77,8 +77,8 @@ public class ChordProtocol extends BaseProtocol {
         /*---------------------- Register Message Handlers -------------------------- */
         registerMessageHandler(channel.id, KeepAliveMessage.MSG_ID, this::UponKeepAliveMessage, this::uponKeepAliveMessageFail);
 
-        registerMessageHandler(channel.id, JoinRingMessage.MSG_ID, this::uponJoinRingMessage, this::uponMessageFail);
-        registerMessageHandler(channel.id, JoinRingReplyMessage.MSG_ID, this::uponJoinRingReplyMessage, this::uponMessageFail);
+        registerMessageHandler(channel.id, JoinRingMessage.MSG_ID, this::uponJoinRingMessage, this::uponMessageFailRetry);
+        registerMessageHandler(channel.id, JoinRingReplyMessage.MSG_ID, this::uponJoinRingReplyMessage, this::uponMessageFailRetry);
 
         registerMessageHandler(channel.id, GetPredecessorMessage.MSG_ID, this::uponGetPredecessorMessage, this::uponMessageFail);
         registerMessageHandler(channel.id, GetPredecessorReplyMessage.MSG_ID, this::uponGetPredecessorReplyMessage, this::uponMessageFail);
@@ -88,8 +88,8 @@ public class ChordProtocol extends BaseProtocol {
         registerMessageHandler(channel.id, RestoreFingerMessage.MSG_ID, this::uponRestoreFingerMessage, this::uponMessageFail);
         registerMessageHandler(channel.id, RestoreFingerReplyMessage.MSG_ID, this::uponRestoreFingerReplyMessage, this::uponMessageFail);
 
-        registerMessageHandler(channel.id, FindSuccessorMessage.MSG_ID, this::UponFindSuccessorMessage, this::uponMessageFail);
-        registerMessageHandler(channel.id, FindSuccessorReplyMessage.MSG_ID, this::UponFindSuccessorReplyMessage, this::uponMessageFail);
+        registerMessageHandler(channel.id, FindSuccessorMessage.MSG_ID, this::UponFindSuccessorMessage, this::uponMessageFailRetry);
+        registerMessageHandler(channel.id, FindSuccessorReplyMessage.MSG_ID, this::UponFindSuccessorReplyMessage, this::uponMessageFailRetry);
 
         /*---------------------- Register Message Serializers ---------------------- */
         registerMessageSerializer(channel.id, KeepAliveMessage.MSG_ID, KeepAliveMessage.serializer);
@@ -146,7 +146,7 @@ public class ChordProtocol extends BaseProtocol {
             String contact = props.getProperty("contact");
             String[] hostElems = contact.split(":");
             Host contactHost = new Host(InetAddress.getByName(hostElems[0]), Short.parseShort(hostElems[1]));
-            dispatchMessage(new JoinRingMessage(self), contactHost);
+            dispatchRetryMessage(new JoinRingMessage(self), contactHost);
         } catch (Exception e) {
             logger.error("Invalid contact on configuration: '" + props.getProperty("contact"));
             e.printStackTrace();
@@ -160,11 +160,11 @@ public class ChordProtocol extends BaseProtocol {
         logger.debug("Received {} from {}", msg, from);
         ChordNode node = msg.getNode();
         if(Ring.inBounds(node, self, getSuccessor())){
-            dispatchMessage(new JoinRingReplyMessage(getSuccessor()), node.getHost());
+            dispatchRetryMessage(new JoinRingReplyMessage(getSuccessor()), node.getHost());
         }
         else {
             ChordNode closestPrecedingNode = closestPrecedingNode(node);
-            dispatchMessage(msg, closestPrecedingNode.getHost());
+            dispatchRetryMessage(msg, closestPrecedingNode.getHost());
         }
     }
 
@@ -252,7 +252,7 @@ public class ChordProtocol extends BaseProtocol {
     private void UponKeepAliveMessage(KeepAliveMessage msg, Host from, short sourceProto, int channelId) {}
 
     private void uponKeepAliveMessageFail(KeepAliveMessage msg, Host host, short destProto, Throwable throwable, int channelId) {
-        logger.error("Keep Alive Message {} to {} failed, reason: {}", msg, host, throwable);
+        uponMessageFail(msg, host, destProto, throwable ,channelId);
         removeHostFromView(host);
     }
 
@@ -294,21 +294,21 @@ public class ChordProtocol extends BaseProtocol {
             if(ChordNode.equals(closestPrecedingNode,self))
                 sendReply(new LookupReply(request.getRequestId(), getSuccessor().toNode()), StorageProtocol.PROTOCOL_ID);
             else
-                dispatchMessage(new FindSuccessorMessage(request.getRequestId(), key, self.getHost()), closestPrecedingNode.getHost());
+                dispatchRetryMessage(new FindSuccessorMessage(request.getRequestId(), key, self.getHost()), closestPrecedingNode.getHost());
         }
     }
 
     private void UponFindSuccessorMessage(FindSuccessorMessage msg, Host from, short sourceProto, int channelId) {
         logger.debug("Received {} from {}", msg, from);
         if(Ring.inBounds(msg.getKey(), self, getSuccessor())){
-            dispatchMessage(new FindSuccessorReplyMessage(msg.getRequestId(), msg.getKey(), getSuccessor()), msg.getHost());
+            dispatchRetryMessage(new FindSuccessorReplyMessage(msg.getRequestId(), msg.getKey(), getSuccessor()), msg.getHost());
         }
         else{
             ChordNode closestPrecedingNode = closestPrecedingNode(msg.getKey());
             if(ChordNode.equals(closestPrecedingNode,self))
-                dispatchMessage(new FindSuccessorReplyMessage(msg.getRequestId(), msg.getKey(), getSuccessor()), msg.getHost());
+                dispatchRetryMessage(new FindSuccessorReplyMessage(msg.getRequestId(), msg.getKey(), getSuccessor()), msg.getHost());
             else
-                dispatchMessage(msg, closestPrecedingNode.getHost());
+                dispatchRetryMessage(msg, closestPrecedingNode.getHost());
         }
     }
 
@@ -380,9 +380,5 @@ public class ChordProtocol extends BaseProtocol {
         sb.append("Successor: ").append(getSuccessor()).append("\n");
         //sb.append(getMetrics()); //getMetrics returns an object with the number of events of each type processed by this protocol.
         logger.debug(sb);
-    }
-
-    protected void uponMessageFail(ProtoMessage msg, Host host, short destProto, Throwable throwable, int channelId) {
-        logger.error("Message {} to {} failed, reason: {}", msg, host, throwable);
     }
 }

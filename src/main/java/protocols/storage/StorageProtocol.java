@@ -74,10 +74,10 @@ public class StorageProtocol extends BaseProtocol {
             registerChannelEventHandler(channel.id, InConnectionDown.EVENT_ID, this::uponInConnectionDown);
 
             /*---------------------- Register Message Handlers -------------------------- */
-            registerMessageHandler(channel.id, RetrieveContentMessage.MSG_ID, this::uponRetrieveContentMessage, this::uponMessageFail);
-            registerMessageHandler(channel.id, RetrieveContentReplyMessage.MSG_ID, this::uponRetrieveContentReplyMessage, this::uponMessageFail);
-            registerMessageHandler(channel.id, StoreContentMessage.MSG_ID, this::uponStoreContentMessage, this::uponMessageFail);
-            registerMessageHandler(channel.id, StoreContentReplyMessage.MSG_ID, this::uponStoreContentReplyMessage, this::uponMessageFail);
+            registerMessageHandler(channel.id, RetrieveContentMessage.MSG_ID, this::uponRetrieveContentMessage, this::uponMessageFailRetry);
+            registerMessageHandler(channel.id, RetrieveContentReplyMessage.MSG_ID, this::uponRetrieveContentReplyMessage, this::uponMessageFailRetry);
+            registerMessageHandler(channel.id, StoreContentMessage.MSG_ID, this::uponStoreContentMessage, this::uponMessageFailRetry);
+            registerMessageHandler(channel.id, StoreContentReplyMessage.MSG_ID, this::uponStoreContentReplyMessage, this::uponMessageFailRetry);
 
             /*---------------------- Register Message Serializers ---------------------- */
             registerMessageSerializer(channel.id, RetrieveContentMessage.MSG_ID, RetrieveContentMessage.serializer);
@@ -134,7 +134,7 @@ public class StorageProtocol extends BaseProtocol {
             }
 
             for(Node node : result.getNodes())
-                dispatchMessageButNotToSelf(new StoreContentMessage(result.getRequestId(), storeRequest.getName(), storeRequest.getContent()), node.getHost());
+                dispatchRetryMessageButNotToSelf(new StoreContentMessage(result.getRequestId(), storeRequest.getName(), storeRequest.getContent()), node.getHost());
         }
 
 
@@ -154,7 +154,7 @@ public class StorageProtocol extends BaseProtocol {
             }
             else {
                 for(Node node : result.getNodes())
-                    dispatchMessage(new RetrieveContentMessage(result.getRequestId(), retrieveRequest.getName()), node.getHost());
+                    dispatchRetryMessage(new RetrieveContentMessage(result.getRequestId(), retrieveRequest.getName()), node.getHost());
             }
         }
     }
@@ -164,7 +164,7 @@ public class StorageProtocol extends BaseProtocol {
     private void uponStoreContentMessage(StoreContentMessage msg, Host from, short sourceProto, int channelId) {
         logger.debug("Received {} from {}", msg, from);
         storage.put(msg.getName(), msg.getContent());
-        dispatchMessage(new StoreContentReplyMessage(msg.getRequestId(), msg.getName()), from);
+        dispatchRetryMessage(new StoreContentReplyMessage(msg.getRequestId(), msg.getName()), from);
     }
 
     private void uponStoreContentReplyMessage(StoreContentReplyMessage msg, Host from, short sourceProto, int channelId) {
@@ -176,7 +176,7 @@ public class StorageProtocol extends BaseProtocol {
     private void uponRetrieveContentMessage(RetrieveContentMessage msg, Host from, short sourceProto, int channelId) {
         logger.debug("Received {} from {}", msg, from);
         byte[] content = storage.get(msg.getName());
-        dispatchMessage(new RetrieveContentReplyMessage(msg.getRequestId(), msg.getName(), content == null, content), from);
+        dispatchRetryMessage(new RetrieveContentReplyMessage(msg.getRequestId(), msg.getName(), content == null, content), from);
     }
 
     private void uponRetrieveContentReplyMessage(RetrieveContentReplyMessage msg, Host from, short sourceProto, int channelId) {
@@ -190,11 +190,4 @@ public class StorageProtocol extends BaseProtocol {
             sendReplyOnce(new RetrieveFailedReply(msg.getRequestId(), msg.getName()), AutomatedApplication.PROTO_ID, msg.getRequestId());
         }
     }
-
-    /*---------------------------------------- Debug ---------------------------------- */
-
-    protected void uponMessageFail(ProtoMessage msg, Host host, short destProto, Throwable throwable, int channelId) {
-        logger.error("Message {} to {} failed, reason: {}", msg, host, throwable);
-    }
-
 }

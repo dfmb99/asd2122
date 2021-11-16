@@ -23,7 +23,8 @@ public abstract class BaseProtocol extends GenericProtocol {
     protected final Host self;
     protected Channel channel;
 
-    protected final Map<Host, List<ProtoMessage>> pendingMessages;
+    protected final Map<Host, Queue<ProtoMessage>> pendingMessages;
+    protected final Map<Host, Queue<ProtoMessage>> pendingRetryMessages;
 
     private final Set<UUID> replies;
 
@@ -34,6 +35,7 @@ public abstract class BaseProtocol extends GenericProtocol {
         this.self = self;
 
         pendingMessages = new HashMap<>();
+        pendingRetryMessages = new HashMap<>();
         replies = new HashSet<>();
     }
 
@@ -63,6 +65,7 @@ public abstract class BaseProtocol extends GenericProtocol {
             openConnection(host);
             channel.pendingConnections.add(host);
             pendingMessages.put(host, new LinkedList<>());
+            pendingRetryMessages.put(host, new LinkedList<>());
         }
     }
 
@@ -70,6 +73,7 @@ public abstract class BaseProtocol extends GenericProtocol {
         channel.openConnections.remove(host);
         channel.pendingConnections.remove(host);
         pendingMessages.remove(host);
+        pendingRetryMessages.remove(host);
         closeConnection(host);
     }
 
@@ -86,7 +90,7 @@ public abstract class BaseProtocol extends GenericProtocol {
         }
         else if(channel.pendingConnections.contains(host)) {
             logger.debug("Queued message {} from {} to {} ", message, self, host);
-            List<ProtoMessage> l =  pendingMessages.get(host);
+            Queue<ProtoMessage> l =  pendingMessages.get(host);
             if(l != null)
                 l.add(message);
             else
@@ -97,6 +101,33 @@ public abstract class BaseProtocol extends GenericProtocol {
             channel.pendingConnections.add(host);
             logger.debug("Queued message {} from {} to {} ", message, self, host);
             pendingMessages.put(host, new LinkedList<>(Collections.singleton(message)));
+        }
+    }
+
+    protected void dispatchRetryMessageButNotToSelf(ProtoMessage message, Host host) {
+        if(!host.equals(self))
+            dispatchRetryMessage(message,host);
+    }
+
+    protected void dispatchRetryMessage(ProtoMessage message, Host host) {
+
+        if(channel.openConnections.contains(host)) {
+            logger.debug("Sent message {} from {} to {} ", message, self, host);
+            sendMessage(message, host);
+        }
+        else if(channel.pendingConnections.contains(host)) {
+            logger.debug("Queued message {} from {} to {} ", message, self, host);
+            Queue<ProtoMessage> l =  pendingRetryMessages.get(host);
+            if(l != null)
+                l.add(message);
+            else
+                pendingRetryMessages.put(host, new LinkedList<>(Collections.singleton(message)));
+        }
+        else {
+            openConnection(host);
+            channel.pendingConnections.add(host);
+            logger.debug("Queued message {} from {} to {} ", message, self, host);
+            pendingRetryMessages.put(host, new LinkedList<>(Collections.singleton(message)));
         }
     }
 
@@ -113,12 +144,40 @@ public abstract class BaseProtocol extends GenericProtocol {
         channel.openConnections.add(host);
         channel.pendingConnections.remove(host);
 
-        Optional.ofNullable(pendingMessages.get(host)).ifPresent(l -> l.forEach(m -> {
+        Queue<ProtoMessage> msgs = pendingMessages.get(host);
+        while (msgs!=null && !msgs.isEmpty()) {
+            ProtoMessage m = msgs.poll();
             logger.debug("Sent message {} from {} to {} ", m, self, host);
             sendMessage(m, host);
-        }));
+        }
 
-        pendingMessages.remove(host);
+        Queue<ProtoMessage> rmsgs = pendingRetryMessages.get(host);
+        while (rmsgs!=null && !rmsgs.isEmpty()) {
+            ProtoMessage m = rmsgs.poll();
+            logger.debug("Sent message {} from {} to {} ", m, self, host);
+            sendMessage(m, host);
+        }
+    }
+
+    protected void uponMessageFail(ProtoMessage msg, Host host, short destProto, Throwable throwable, int channelId) {
+        logger.error("Message {} to {} failed, reason: {}", msg, host, throwable);
+        channel.openConnections.remove(host);
+        closeConnection(host);
+        openConnection(host);
+        channel.pendingConnections.add(host);
+    }
+
+    protected void uponMessageFailRetry(ProtoMessage msg, Host host, short destProto, Throwable throwable, int channelId) {
+        logger.error("Message {} to {} failed, reason: {}", msg, host, throwable);
+        channel.openConnections.remove(host);
+        closeConnection(host);
+        openConnection(host);
+        channel.pendingConnections.add(host);
+        Queue<ProtoMessage> l =  pendingRetryMessages.get(host);
+        if(l != null)
+            l.add(msg);
+        else
+            pendingRetryMessages.put(host, new LinkedList<>(Collections.singleton(msg)));
     }
 
     protected void uponOutConnectionDown(OutConnectionDown event, int channelId) {
