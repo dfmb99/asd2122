@@ -23,7 +23,7 @@ public abstract class BaseProtocol extends GenericProtocol {
     protected final Host self;
     protected Channel channel;
 
-    protected final Map<Host, List<ProtoMessage>> pendingMessages;
+    protected final Map<Host, Queue<ProtoMessage>> pendingMessages;
 
     private final Set<UUID> replies;
 
@@ -79,14 +79,22 @@ public abstract class BaseProtocol extends GenericProtocol {
     }
 
     protected void dispatchMessage(ProtoMessage message, Host host) {
-
         if(channel.openConnections.contains(host)) {
-            logger.debug("Sent message {} from {} to {} ", message, self, host);
-            sendMessage(message, host);
+            boolean success = sendMessageWithCare(message, host);
+            if(!success) {
+                Queue<ProtoMessage> l =  pendingMessages.get(host);
+                if(l != null)
+                    l.add(message);
+                else
+                    pendingMessages.put(host, new LinkedList<>(Collections.singleton(message)));
+            }
+            else {
+                logger.debug("Sent message {} from {} to {} ", message, self, host);
+            }
         }
         else if(channel.pendingConnections.contains(host)) {
             logger.debug("Queued message {} from {} to {} ", message, self, host);
-            List<ProtoMessage> l =  pendingMessages.get(host);
+            Queue<ProtoMessage> l =  pendingMessages.get(host);
             if(l != null)
                 l.add(message);
             else
@@ -107,16 +115,37 @@ public abstract class BaseProtocol extends GenericProtocol {
         }
     }
 
+    private boolean sendMessageWithCare(ProtoMessage message, Host host) {
+        try {
+            sendMessage(message,host);
+            return true;
+        } catch (Exception e) {
+            logger.error(e.getCause());
+            channel.openConnections.remove(host);
+            closeConnection(host);
+            openConnection(host);
+            channel.pendingConnections.add(host);
+            return false;
+        }
+    }
+
     protected void uponOutConnectionUp(OutConnectionUp event, int channelId) {
         Host host = event.getNode();
         logger.debug("Out Connection from {} to {} is up", self, host);
         channel.openConnections.add(host);
         channel.pendingConnections.remove(host);
 
-        Optional.ofNullable(pendingMessages.get(host)).ifPresent(l -> l.forEach(m -> {
-            logger.debug("Sent message {} from {} to {} ", m, self, host);
-            sendMessage(m, host);
-        }));
+        Queue<ProtoMessage> queue = pendingMessages.get(host);
+        while (!queue.isEmpty()) {
+            ProtoMessage m = queue.poll();
+            boolean success = sendMessageWithCare(m, host);
+            if(!success) {
+                queue.add(m);
+            }
+            else {
+                logger.debug("Sent message {} from {} to {} ", m, self, host);
+            }
+        }
 
         pendingMessages.remove(host);
     }
