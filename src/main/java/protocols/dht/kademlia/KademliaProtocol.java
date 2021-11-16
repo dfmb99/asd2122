@@ -87,10 +87,10 @@ public class KademliaProtocol extends BaseProtocol {
         registerRequestHandler(LookupRequest.REQUEST_TYPE_ID, this::uponLookupRequest);
 
         /*----------------------- Register Message Handlers --------------------------- */
-        registerMessageHandler(channel.id, FindNodeMessage.MSG_ID, this::uponFindNodeMessage, this::uponMessageFail);
-        registerMessageHandler(channel.id, FindNodeReplyMessage.MSG_ID, this::uponFindNodeReplyMessage, this::uponMessageFail);
-        registerMessageHandler(channel.id, PingMessage.MSG_ID, this::uponPingMessage, this::uponMessageFail);
-        registerMessageHandler(channel.id, PingReplyMessage.MSG_ID, this::uponPingReplyMessage, this::uponMessageFail);
+        registerMessageHandler(channel.id, FindNodeMessage.MSG_ID, this::uponFindNodeMessage, this::uponMessageFailRetry);
+        registerMessageHandler(channel.id, FindNodeReplyMessage.MSG_ID, this::uponFindNodeReplyMessage, this::uponMessageFailRetry);
+        registerMessageHandler(channel.id, PingMessage.MSG_ID, this::uponPingMessage, this::uponMessageFailRetry);
+        registerMessageHandler(channel.id, PingReplyMessage.MSG_ID, this::uponPingReplyMessage, this::uponMessageFailRetry);
 
         /*---------------------- Register Message Serializer -------------------------- */
         registerMessageSerializer(channel.id, FindNodeMessage.MSG_ID, FindNodeMessage.serializer);
@@ -127,7 +127,7 @@ public class KademliaProtocol extends BaseProtocol {
 
         SortedSet<KademliaNode> closestK = findKClosestNodes(msg.getLookUpId());
         updateRoutingTable(from);
-        dispatchMessage(new FindNodeReplyMessage(msg.getLookUpId(), closestK, msg.isBootstrapping()), from);
+        dispatchRetryMessage(new FindNodeReplyMessage(msg.getLookUpId(), closestK, msg.isBootstrapping()), from);
     }
 
 
@@ -176,7 +176,7 @@ public class KademliaProtocol extends BaseProtocol {
             FindNodeMessage findNode = new FindNodeMessage(id, msg.isBootstrapping());
             Host peer = firstNotQueried(currentClosestK, finishedQueries, currentQueries);
             if(peer != null){
-                dispatchMessage(findNode, peer);
+                dispatchRetryMessage(findNode, peer);
                 currentQueries.add(peer);
             }
         }
@@ -186,7 +186,7 @@ public class KademliaProtocol extends BaseProtocol {
     private void uponPingMessage(PingMessage msg, Host from, short sourceProto, int channelId){
         logger.debug("Received {} from {}", msg, from);
 
-        dispatchMessage(new PingReplyMessage(msg.getUid()), from);
+        dispatchRetryMessage(new PingReplyMessage(msg.getUid()), from);
     }
 
     private void uponPingReplyMessage(PingReplyMessage msg, Host from, short sourceProto, int channelId){
@@ -232,7 +232,7 @@ public class KademliaProtocol extends BaseProtocol {
                 BigInteger contactId = HashGenerator.generateHash(contactNode.getHost().toString());
                 findBucket(contactId).add(contactNode);
                 initRequestState(self.getId());
-                dispatchMessage(new FindNodeMessage(self.getId(), true), contactNode.getHost());
+                dispatchRetryMessage(new FindNodeMessage(self.getId(), true), contactNode.getHost());
 
             } catch (Exception e) {
                 logger.error("Invalid contact on configuration: '" + props.getProperty("contact"));
@@ -258,7 +258,7 @@ public class KademliaProtocol extends BaseProtocol {
             else{ // bucket full
                 Node oldest = bucket.get(0); // get the head/oldest
                 Double pingUid = Math.random();
-                dispatchMessage(new PingMessage(pingUid), oldest.getHost());
+                dispatchRetryMessage(new PingMessage(pingUid), oldest.getHost());
                 setupTimer(new PingTimer(pingUid), pingTimeout);
                 pingPendingToLeave.put(pingUid, oldest);
                 pingPendingToEnter.put(pingUid, peer);
@@ -293,7 +293,7 @@ public class KademliaProtocol extends BaseProtocol {
         Iterator<KademliaNode> it = currentClosestK.get(target).iterator();
         for(int k = 0; (k < alfa) && it.hasNext(); k++){  // accounts for case where we don't have k nodes in our kbuckets
             KademliaNode recipient = it.next();
-            dispatchMessage(msg, recipient.getHost());
+            dispatchRetryMessage(msg, recipient.getHost());
             Set<Host> currQueries = currentQueries.get(target);
             currQueries.add(recipient.getHost());
         }
