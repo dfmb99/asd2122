@@ -25,9 +25,9 @@ public abstract class BaseProtocol extends GenericProtocol {
 
     protected final Map<Host, List<ProtoMessage>> pendingMessages;
 
-    private final Set<String> replies;
+    private final Set<UUID> replies;
 
-    public BaseProtocol(Host self, String protocolName, short protocolId, Logger logger) throws IOException {
+    public BaseProtocol(Host self, String protocolName, short protocolId, Logger logger) {
         super(protocolName, protocolId);
 
         this.logger = logger;
@@ -100,7 +100,7 @@ public abstract class BaseProtocol extends GenericProtocol {
         }
     }
 
-    protected void sendReplyOnce(ProtoReply reply, short destination, String id) {
+    protected void sendReplyOnce(ProtoReply reply, short destination, UUID id) {
         if(!replies.contains(id)) {
             replies.add(id);
             sendReply(reply, destination);

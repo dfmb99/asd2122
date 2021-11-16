@@ -130,7 +130,7 @@ public class StorageProtocol extends BaseProtocol {
             if(selfIncluded) {
                 storage.put(storeRequest.getName(), storeRequest.getContent());
                 logger.debug("Stored content {} in myself", storeRequest.getName());
-                sendReply(new StoreOKReply(storeRequest.getRequestId(), storeRequest.getName()), AutomatedApplication.PROTO_ID);
+                sendReplyOnce(new StoreOKReply(storeRequest.getRequestId(), storeRequest.getName()), AutomatedApplication.PROTO_ID, storeRequest.getRequestId());
             }
 
             for(Node node : result.getNodes())
@@ -145,11 +145,11 @@ public class StorageProtocol extends BaseProtocol {
                 byte[] content = storage.get(retrieveRequest.getName());
                 if(content != null) {
                     logger.debug("Failed to retrieved content {} from myself", retrieveRequest.getName());
-                    sendReply(new RetrieveOKReply(retrieveRequest.getRequestId(), retrieveRequest.getName(), content), AutomatedApplication.PROTO_ID);
+                    sendReplyOnce(new RetrieveOKReply(retrieveRequest.getRequestId(), retrieveRequest.getName(), content), AutomatedApplication.PROTO_ID, retrieveRequest.getRequestId());
                 }
                 else {
                     logger.debug("Retrieved content {} from myself", retrieveRequest.getName());
-                    sendReply(new RetrieveFailedReply(retrieveRequest.getRequestId(), retrieveRequest.getName()), AutomatedApplication.PROTO_ID);
+                    sendReplyOnce(new RetrieveFailedReply(retrieveRequest.getRequestId(), retrieveRequest.getName()), AutomatedApplication.PROTO_ID, retrieveRequest.getRequestId());
                 }
             }
             else {
@@ -170,7 +170,7 @@ public class StorageProtocol extends BaseProtocol {
     private void uponStoreContentReplyMessage(StoreContentReplyMessage msg, Host from, short sourceProto, int channelId) {
         logger.debug("Received {} from {}", msg, from);
         logger.debug("Stored content {} in {}", msg.getName(), from);
-        sendReplyOnce(new StoreOKReply(msg.getRequestId(), msg.getName()), AutomatedApplication.PROTO_ID, msg.getRequestId().toString());
+        sendReplyOnce(new StoreOKReply(msg.getRequestId(), msg.getName()), AutomatedApplication.PROTO_ID, msg.getRequestId());
     }
 
     private void uponRetrieveContentMessage(RetrieveContentMessage msg, Host from, short sourceProto, int channelId) {
@@ -183,11 +183,11 @@ public class StorageProtocol extends BaseProtocol {
         logger.debug("Received {} from {}", msg, from);
         if(!msg.isNotFound()) {
             logger.debug("Retrieved content {} from {}", msg.getName(), from);
-            sendReply(new RetrieveOKReply(msg.getRequestId(), msg.getName(), msg.getContent()), AutomatedApplication.PROTO_ID);
+            sendReplyOnce(new RetrieveOKReply(msg.getRequestId(), msg.getName(), msg.getContent()), AutomatedApplication.PROTO_ID, msg.getRequestId());
         }
         else {
             logger.debug("Failed to retrieved content {} from {}", msg.getName(), from);
-            sendReply(new RetrieveFailedReply(msg.getRequestId(), msg.getName()), AutomatedApplication.PROTO_ID);
+            sendReplyOnce(new RetrieveFailedReply(msg.getRequestId(), msg.getName()), AutomatedApplication.PROTO_ID, msg.getRequestId());
         }
     }
 
